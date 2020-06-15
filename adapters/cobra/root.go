@@ -18,8 +18,9 @@ func RootCmd(app ctl.Application) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wollemi",
 		Short: "cli for wollemi",
-		Long: Long(`
-			Please build file generator and formatter.
+		Long: Description(`
+			Please build file generator and formatter capable of generating go_binary,
+			go_library and go_test build rules from existing go code.
 		`),
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

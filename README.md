@@ -1,5 +1,6 @@
 # Wollemi
-Please build file generator and formatter.
+Please build file generator and formatter capable of generating go_binary,
+go_library and go_test build rules from existing go code.
 
 ## Requirements
 - please
@@ -89,7 +90,7 @@ existing go code. It also applies all formatting modifications from the
 wollemi fmt command.
 
 Wollemi is currently unable to parse build files which contain python
-string inerpolation. These build files will not be formatted because of
+string interpolation. These build files will not be formatted because of
 this issue. Also, when the unparseable build file contains go get rules
 gofmt will be unable to resolve go dependencies to targets contained in
 this build file. To get around the unresolved go dependency issue you can
@@ -133,7 +134,9 @@ visibility of existing go build rules is never modified.
 For example, the following gofmt would apply a default visibility of
 ["project/service/routes/..."] to any new go build rules generated.
 
+```
 wollemi gofmt project/service/routes/...
+```
 
 When gofmt is run on an individual package the default visiblity applied is
 ["PUBLIC"] for any new go build rules generated.
