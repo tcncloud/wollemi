@@ -6,8 +6,12 @@ go_library and go_test build rules from existing go code.
 - please
 
 ### Install
-Wollemi can be installed by running the following install script from the root
-of the repository.
+```
+go get github.com/tcncloud/wollemi
+```
+
+Wollemi can also be installed by running the following install script from the
+root of the repository which builds the binary using please.
 
 ```
 ./tools/wollemi/install.sh
