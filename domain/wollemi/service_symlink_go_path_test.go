@@ -20,23 +20,23 @@ func (t *ServiceSuite) TestService_SymlinkGoPath() {
 	t.It("can symlink third party dependencies into gopath", func(t *T) {
 		have := []string{
 			"//:wollemi",
-			"///adapters/bazel:bazel",
+			"//adapters/bazel:bazel",
 			"//third_party/go/github.com/bazelbuild/buildtools:buildtools",
 			"//third_party/go/github.com/bazelbuild/buildtools:_buildtools-buildtools#download",
-			"///ports/please:please",
-			"///adapters/filesystem:filesystem",
+			"//ports/please:please",
+			"//adapters/filesystem:filesystem",
 			"//third_party/go/github.com/sirupsen:logrus",
 			"//third_party/go/github.com/konsorten:go-windows-terminal-sequences",
 			"//third_party/go/github.com/konsorten:_go-windows-terminal-sequences-go-windows-terminal-sequences#download",
 			"//third_party/go/golang.org/x:sys",
 			"//third_party/go/golang.org/x:_sys-sys#download",
 			"//third_party/go/github.com/sirupsen:_logrus-logrus#download",
-			"///ports/filesystem:filesystem",
-			"///adapters/golang:golang",
-			"///ports/golang:golang",
-			"///adapters/please:please",
-			"///domain/wollemi:wollemi",
-			"///ports/wollemi:wollemi",
+			"//ports/filesystem:filesystem",
+			"//adapters/golang:golang",
+			"//ports/golang:golang",
+			"//adapters/please:please",
+			"//domain/wollemi:wollemi",
+			"//ports/wollemi:wollemi",
 		}
 
 		gopkg := "github.com/wollemi_test"

@@ -114,7 +114,7 @@ func (t *BuilderSuite) TestBuilder_Write() {
 							LHS: &build.Ident{Name: "default_visibility"},
 							RHS: &build.ListExpr{
 								List: []build.Expr{
-									&build.StringExpr{Value: "///..."},
+									&build.StringExpr{Value: "//..."},
 								},
 							},
 						},
@@ -153,7 +153,7 @@ func (t *BuilderSuite) TestBuilder_Write() {
 							LHS: &build.Ident{Name: "default_visibility"},
 							RHS: &build.ListExpr{
 								List: []build.Expr{
-									&build.StringExpr{Value: "///..."},
+									&build.StringExpr{Value: "//..."},
 								},
 							},
 						},
@@ -191,7 +191,7 @@ func (t *BuilderSuite) TestBuilder_Write() {
 							LHS: &build.Ident{Name: "deps"},
 							RHS: &build.ListExpr{
 								List: []build.Expr{
-									&build.StringExpr{Value: "///ports/please"},
+									&build.StringExpr{Value: "//ports/please"},
 								},
 							},
 						},
@@ -203,13 +203,13 @@ func (t *BuilderSuite) TestBuilder_Write() {
 		var want bytes.Buffer
 
 		want.WriteString("subinclude(\"//build_defs:go\")\n")
-		want.WriteString("package(default_visibility = [\"///...\"])\n")
+		want.WriteString("package(default_visibility = [\"//...\"])\n")
 		want.WriteString("go_mock(\n")
 		want.WriteString("    name = \"mock_please\",\n")
 		want.WriteString("    ginkgo = False,\n")
 		want.WriteString("    interfaces = [\"Filesystem\"],\n")
 		want.WriteString("    package = \"github.com/tcncloud/wollemi/ports/please\",\n")
-		want.WriteString("    deps = [\"///ports/please\"],\n")
+		want.WriteString("    deps = [\"//ports/please\"],\n")
 		want.WriteString(")\n")
 
 		t.filesystem.EXPECT().WriteFile(any, any, any).
