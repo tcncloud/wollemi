@@ -1,0 +1,32 @@
+go_library(
+    name = "wollemi",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = [
+        "//ports/filesystem",
+        "//ports/golang",
+        "//ports/logging",
+        "//ports/please",
+        "//ports/wollemi",
+    ],
+)
+
+go_test(
+    name = "test",
+    srcs = glob(["*_test.go"]),
+    external = True,
+    visibility = ["//..."],
+    deps = [
+        ":wollemi",
+        "//ports/filesystem",
+        "//ports/golang",
+        "//ports/golang:mock",
+        "//ports/please:mock",
+        "//ports/wollemi:mock",
+        "//testdata/expect",
+        "//testdata/mem",
+        "//testdata/please",
+        "//third_party/go/github.com/golang:mock",
+        "//third_party/go/github.com/stretchr:testify",
+    ],
+)

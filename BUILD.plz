@@ -1,0 +1,16 @@
+go_binary(
+    name = "wollemi",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["PUBLIC"],
+    deps = [
+        "//adapters/bazel",
+        "//adapters/cobra",
+        "//adapters/filesystem",
+        "//adapters/golang",
+        "//adapters/logrus",
+        "//adapters/please",
+        "//domain/wollemi",
+        "//ports/ctl",
+        "//ports/logging",
+    ],
+)

@@ -1,0 +1,10 @@
+go_library(
+    name = "cobra",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = [
+        "//ports/ctl",
+        "//ports/logging",
+        "//third_party/go/github.com/spf13:cobra",
+    ],
+)

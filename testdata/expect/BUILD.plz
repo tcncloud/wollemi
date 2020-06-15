@@ -1,0 +1,11 @@
+go_library(
+    name = "expect",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    test_only = True,
+    visibility = ["//..."],
+    deps = [
+        "//domain/stringify",
+        "//third_party/go/github.com/pmezard/go-difflib:difflib",
+        "//third_party/go/github.com/stretchr:testify",
+    ],
+)

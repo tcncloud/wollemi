@@ -1,0 +1,9 @@
+package(default_visibility = ["PUBLIC"])
+
+go_get(
+    name = "difflib",
+    get = "github.com/pmezard/go-difflib/difflib",
+    repo = "github.com/pmezard/go-difflib/difflib",
+    revision = "v1.0.0",
+    strip = ["difflib_test.go"],
+)

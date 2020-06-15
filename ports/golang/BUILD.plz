@@ -1,0 +1,16 @@
+go_library(
+    name = "golang",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = [],
+)
+
+go_mock(
+    name = "mock",
+    interfaces = [
+        "Importer",
+    ],
+    package = "github.com/tcncloud/wollemi/ports/golang",
+    visibility = ["//..."],
+    deps = [":golang"],
+)

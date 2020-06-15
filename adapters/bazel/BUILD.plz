@@ -1,0 +1,25 @@
+go_test(
+    name = "test",
+    srcs = glob(["*_test.go"]),
+    external = True,
+    deps = [
+        ":bazel",
+        "//ports/please",
+        "//ports/please:mock",
+        "//testdata/mem",
+        "//third_party/go/github.com/bazelbuild:buildtools",
+        "//third_party/go/github.com/golang:mock",
+        "//third_party/go/github.com/stretchr:testify",
+    ],
+)
+
+go_library(
+    name = "bazel",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = [
+        "//ports/logging",
+        "//ports/please",
+        "//third_party/go/github.com/bazelbuild:buildtools",
+    ],
+)

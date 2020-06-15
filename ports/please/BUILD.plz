@@ -1,0 +1,20 @@
+go_library(
+    name = "please",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = [],
+)
+
+go_mock(
+    name = "mock",
+    interfaces = [
+        "Filesystem",
+        "Builder",
+        "Rule",
+        "File",
+        "Ctl",
+    ],
+    package = "github.com/tcncloud/wollemi/ports/please",
+    visibility = ["//..."],
+    deps = [":please"],
+)

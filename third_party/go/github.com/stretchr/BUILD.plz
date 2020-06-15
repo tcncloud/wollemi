@@ -1,0 +1,17 @@
+package(default_visibility = ["PUBLIC"])
+
+go_get(
+    name = "testify",
+    get = "github.com/stretchr/testify",
+    install = [
+        "assert",
+        "require",
+        "vendor/github.com/davecgh/go-spew/spew",
+        "vendor/github.com/pmezard/go-difflib/difflib",
+    ],
+    repo = "github.com/stretchr/testify",
+    revision = "v1.4.0",
+    deps = [
+        "//third_party/go/gopkg.in:yaml.v2",
+    ],
+)

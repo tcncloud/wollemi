@@ -1,0 +1,19 @@
+go_library(
+    name = "wollemi",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = ["//ports/filesystem"],
+)
+
+go_mock(
+    name = "mock",
+    interfaces = [
+        "Filesystem",
+    ],
+    package = "github.com/tcncloud/wollemi/ports/wollemi",
+    visibility = ["//..."],
+    deps = [
+        ":wollemi",
+        "//ports/filesystem",
+    ],
+)

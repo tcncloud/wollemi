@@ -1,0 +1,29 @@
+package(default_visibility = ["PUBLIC"])
+
+go_get(
+    name = "mockgen",
+    binary = True,
+    get = [],
+    install = ["github.com/golang/mock/mockgen"],
+    deps = [
+        ":mock",
+    ],
+)
+
+go_get(
+    name = "mock",
+    get = "github.com/golang/mock",
+    install = [
+        "mockgen/model",
+        "gomock",
+    ],
+    repo = "github.com/golang/mock",
+    revision = "v1.4.3",
+    strip = [
+        "ci",
+        "sample",
+    ],
+    deps = [
+        "//third_party/go/golang.org/x:tools",
+    ],
+)

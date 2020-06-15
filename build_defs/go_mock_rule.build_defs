@@ -1,0 +1,54 @@
+def go_mock(name:str, interfaces:list, deps:list, package:str, visibility:list = None, labels:list = None):
+    deps += ['//third_party/go/github.com/golang:mock']
+
+    tools = {
+        'mockgen': ['//third_party/go/github.com/golang:mockgen'],
+    }
+
+    mock_name = 'mock_'+basename(package)
+
+    mockgen_args = f'-package {mock_name} {package} %s' % ','.join(interfaces)
+
+    mockgen_prog = genrule(
+        name = f'_{name}#mockgen_prog',
+        outs = [f'{name}_mockgen_prog.go'],
+        tools = tools,
+        cmd = f'GO111MODULE=off $TOOLS_MOCKGEN -prog_only {mockgen_args} > $OUTS'
+    )
+
+    mockgen_prog_bin = go_binary(
+        name = f'_{name}#mockgen_prog_bin',
+        srcs = [mockgen_prog],
+        deps = deps,
+    )
+
+    tools['prog'] = [mockgen_prog_bin]
+
+    cmd = [f'GO111MODULE=off $TOOLS_MOCKGEN -exec_only $TOOLS_PROG {mockgen_args}']
+
+    if labels is None:
+        labels = []
+
+    link = 'link:'+package_name()
+
+    if basename(link) != name:
+        link = join_path(link, name)
+
+    if link not in labels:
+        labels += [link]
+
+    mockgen_exec = genrule(
+        name = f'_{name}#mockgen_exec',
+        outs = [f'{name}.mg.go'],
+        tools = tools,
+        cmd = ' | '.join(cmd) + ' > $OUTS',
+        labels = labels,
+    )
+
+    return go_library(
+        name = name,
+        srcs = [mockgen_exec],
+        test_only = True,
+        visibility = visibility,
+        deps = deps,
+    )

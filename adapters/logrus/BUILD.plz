@@ -1,0 +1,20 @@
+go_library(
+    name = "logrus",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    visibility = ["//..."],
+    deps = [
+        "//ports/logging",
+        "//third_party/go/github.com/sirupsen:logrus",
+    ],
+)
+
+go_test(
+    name = "test",
+    srcs = glob(["*_test.go"]),
+    external = True,
+    deps = [
+        ":logrus",
+        "//ports/logging",
+        "//third_party/go/github.com/stretchr:testify",
+    ],
+)

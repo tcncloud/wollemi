@@ -1,0 +1,21 @@
+package(default_visibility = ["PUBLIC"])
+
+go_get(
+    name = "tools",
+    get = "golang.org/x/tools",
+    install = [
+        "imports",
+    ],
+    repo = "github.com/golang/tools",
+    revision = "d88f79806bbd013f54a668506864ce559edf6f0a",
+)
+
+go_get(
+    name = "sys",
+    get = "golang.org/x/sys",
+    install = [
+        "unix",
+    ],
+    repo = "github.com/golang/sys",
+    revision = "ad400b1274690a55531a013560dc08706088f82b",
+)

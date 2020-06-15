@@ -1,0 +1,17 @@
+go_library(
+    name = "please",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    test_only = True,
+    visibility = ["//..."],
+    deps = ["//ports/please"],
+)
+
+go_test(
+    name = "test",
+    srcs = glob(["*_test.go"]),
+    external = True,
+    deps = [
+        ":please",
+        "//third_party/go/github.com/stretchr:testify",
+    ],
+)

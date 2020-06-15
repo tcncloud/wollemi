@@ -1,0 +1,7 @@
+go_library(
+    name = "mem",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    test_only = True,
+    visibility = ["//..."],
+    deps = ["//ports/logging"],
+)

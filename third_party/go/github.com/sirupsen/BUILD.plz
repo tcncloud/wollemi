@@ -1,0 +1,11 @@
+package(default_visibility = ["PUBLIC"])
+
+go_get(
+    name = "logrus",
+    get = "github.com/sirupsen/logrus",
+    repo = "github.com/sirupsen/logrus",
+    revision = "v1.4.1",
+    deps = [
+        "//third_party/go/golang.org/x:sys",
+    ],
+)
