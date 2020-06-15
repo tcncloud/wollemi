@@ -7,7 +7,7 @@ go_library and go_test build rules from existing go code.
 
 ### Install
 ```
-go get github.com/tcncloud/wollemi
+GO111MODULE=on go get github.com/tcncloud/wollemi
 ```
 
 Wollemi can also be installed by running the following install script from the
