@@ -1,5 +1,5 @@
 build:
-    image: golang:1.14
+    image: thoughtmachine/please_ubuntu:latest
     script:
         - ./pleasew test -p -v 2 
         - ./pleasew build -p -v 2 
