@@ -9,6 +9,8 @@ build:
         - ./pleasew test -p -v 2 
         - ./pleasew build -p -v 2 
         - ./pleasew build -a darwin_amd64 -p -v 2
+        - ls -la plz-out/bin 
+        - ls -la plz-out/bin/darwin_amd64
     artifacts:
         paths:
             - plz-out/bin/wollemi
