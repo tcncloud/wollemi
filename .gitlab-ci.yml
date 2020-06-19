@@ -32,6 +32,6 @@ deploy:
         - cp ../plz-out/bin/darwin_amd64/wollemi .
         - tar cvf wollemi-${CI_COMMIT_TAG}-darwin-amd64.tar.gz wollemi
         - cd ..
-        - ./ghr -t ${GITHUB_TOKEN} -u tcncloud -r whollemi -c ${CI_COMMIT_SHA} -replace  ${CI_COMMIT_TAG} ./artifacts/ 
+        - ./ghr -t ${GITHUB_TOKEN} -u tcncloud -r wollemi -c ${CI_COMMIT_SHA} -replace  ${CI_COMMIT_TAG} ./artifacts/ 
 
               
