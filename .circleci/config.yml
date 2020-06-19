@@ -33,7 +33,8 @@ jobs:
     steps:
       - checkout
       - run:
-        name: ./pleasew test -p --profile ci -v 2
+          name: Test
+          command: ./pleasew test -p --profile ci -v 2
 
   #  release:
   #    docker:
