@@ -5,3 +5,21 @@ build:
         - ./pleasew test -p -v 2 
         - ./pleasew build -p -v 2 
         - ./pleasew build -a darwin_amd64 -p -v 2
+    artifacts:
+        paths:
+            - plz-out/bin/wollemi
+            - plz-out/bin/darwin_amd64/wollemi
+        expire_in: 30mins
+deploy:
+    image: ubuntu:20.04
+    dependencies:
+        - build
+    only:
+        - tags
+    script:
+        - apt update && apt install -y curl bzip2
+        - curl -Lo - https://github.com/tcnksm/ghr/releases/download/v0.13.0/ghr_v0.13.0_linux_amd64.tar.gz | tar zxf -
+        - mv ghr_v0.13.0_linux_amd64/ghr .
+        - ./ghr -t ${GITHUB_TOKEN} -u tcncloud -r whollemi -c ${CI_COMMIT_SHA} -replace  ${CI_COMMIT_TAG} ./artifacts/ 
+
+       
