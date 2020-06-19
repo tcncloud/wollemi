@@ -1,7 +1,7 @@
 
 version: 2
 jobs:
-  build-linux:
+  build:
     working_directory: ~/please
     docker:
       - image: thoughtmachine/please-servers:20200407
@@ -17,6 +17,9 @@ jobs:
       - run:
           name: Package
           command: ./pleasew build -v 2  -p --profile ci
+      - run:
+          name: Package Darwin
+          command: ./pleasew build -a darwin_amd64 -v 2 -p --profile ci
       - persist_to_workspace:
           root: plz-out/bin
           paths:
@@ -26,15 +29,6 @@ jobs:
       - save_cache:
           key: go-linux-main-v4-{{ checksum "go.mod" }}
           paths: [ "go.mod" ]
-  build-darwin:
-    macos:
-      xcode: "9.0"
-    working_directory: ~/please
-    steps:
-      - checkout
-      - run:
-          name: Test
-          command: ./pleasew test -p --profile ci -v 2
 
   #  release:
   #    docker:
@@ -48,11 +42,10 @@ workflows:
   version: 2
   build-all:
     jobs:
-      - build-linux
-      - build-darwin
+      - build
       - release:
           requires:
-            - build-linux
+            - build
           filters:
             branches:
               only: master
