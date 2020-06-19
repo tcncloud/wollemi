@@ -1,6 +1,6 @@
 build:
     image: ubuntu:20.04 
     script:
-        - apt update && apt install -y build-essntial xz-utils git
+        - apt update && apt install -y build-essential xz-utils git
         - ./pleasew test -p -v 2 
         - ./pleasew build -p -v 2 
