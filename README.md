@@ -12,7 +12,7 @@ In your please project create a file (`tools/wollemi/BUILD.plz`) with following 
 wollemi_archive = remote_file(
     name = "wollemi",
     _tag = "download",
-    url = f"https://github.com/tcncloud/wollemi/releases/download/v0.0.1/wollemi-v0.0.1-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
+    url = f"https://github.com/tcncloud/wollemi/releases/download/v0.0.2/wollemi-v0.0.2-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
 )
 
 build_rule(
