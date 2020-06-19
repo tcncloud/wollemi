@@ -1,0 +1,5 @@
+build:
+    image: golang:1.14
+    script:
+        - ./pleasew test -p -v 2 
+        - ./pleasew build -p -v 2 
