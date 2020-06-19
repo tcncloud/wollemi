@@ -3,7 +3,7 @@ Please build file generator and formatter capable of generating go_binary,
 go_library and go_test build rules from existing go code.
 
 ## Requirements
-- please
+- [please](https://please.build)
 
 ### Install
 In your please project create a file (`tools/wollemi/BUILD.plz`) with following content:
@@ -22,7 +22,8 @@ build_rule(
     cmd = " && ".join([
         "tar xf $SRCS",
     ]),
-    outs = ["wollemi"]
+    outs = ["wollemi"],
+    visibility = ["PUBLIC"],
 )
 ```
 Then you can run it by invoking please: `plz run //tools/wollemi`
