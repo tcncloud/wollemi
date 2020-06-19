@@ -17,15 +17,10 @@ jobs:
        - run:
            name: Package
            command: ./pleasew build -v 2  -p --profile ci
-      #  - persist_to_workspace:
-      #      root: plz-out/bin
-      #      paths:
-      #        - elan/elan
-      #        - flair/flair
-      #        - lucidity/lucidity
-      #        - mettle/mettle
-      #        - zeal/zeal
-      #        - scripts/gen_release.pex
+       - persist_to_workspace:
+           root: plz-out/bin
+           paths:
+             - wollemi
        - store_artifacts:
            path: plz-out/log
        - save_cache:
