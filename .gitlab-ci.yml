@@ -1,4 +1,8 @@
+stages:
+    - build
+    - deploy
 build:
+    stage: build
     image: ubuntu:20.04 
     script:
         - apt update && apt install -y build-essential xz-utils git wget curl 
@@ -11,6 +15,7 @@ build:
             - plz-out/bin/darwin_amd64/wollemi
         expire_in: 30mins
 deploy:
+    stage: deploy
     image: ubuntu:20.04
     dependencies:
         - build
@@ -20,6 +25,13 @@ deploy:
         - apt update && apt install -y curl bzip2
         - curl -Lo - https://github.com/tcnksm/ghr/releases/download/v0.13.0/ghr_v0.13.0_linux_amd64.tar.gz | tar zxf -
         - mv ghr_v0.13.0_linux_amd64/ghr .
+        - mkdir artifacts
+        - cp plz-out/bin/wollemi artifacts
+        - cd artifacts
+        - tar cvf wollemi-${CI_COMMIT_TAG}-linux-amd64.tar.gz wollemi
+        - cp ../plz-out/bin/darwin_amd64/wollemi .
+        - tar cvf wollemi-${CI_COMMIT_TAG}-darwin-amd64.tar.gz wollemi
+        - cd ..
         - ./ghr -t ${GITHUB_TOKEN} -u tcncloud -r whollemi -c ${CI_COMMIT_SHA} -replace  ${CI_COMMIT_TAG} ./artifacts/ 
 
-       
+              
