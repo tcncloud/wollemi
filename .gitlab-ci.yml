@@ -28,9 +28,10 @@ deploy:
         - mkdir artifacts
         - cp plz-out/bin/wollemi artifacts
         - cd artifacts
-        - tar cvf wollemi-${CI_COMMIT_TAG}-linux-amd64.tar.gz wollemi
+        - tar cjvf wollemi-${CI_COMMIT_TAG}-linux-amd64.tar.gz wollemi
         - cp ../plz-out/bin/darwin_amd64/wollemi .
-        - tar cvf wollemi-${CI_COMMIT_TAG}-darwin-amd64.tar.gz wollemi
+        - tar cjvf wollemi-${CI_COMMIT_TAG}-darwin-amd64.tar.gz wollemi
+        - rm wollemi
         - cd ..
         - ./ghr -t ${GITHUB_TOKEN} -u tcncloud -r wollemi -c ${CI_COMMIT_SHA} -replace  ${CI_COMMIT_TAG} ./artifacts/ 
 
