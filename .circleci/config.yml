@@ -49,6 +49,7 @@ workflows:
   build-all:
     jobs:
       - build-linux
+      - build-darwin
       - release:
           requires:
             - build-linux
