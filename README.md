@@ -6,6 +6,29 @@ go_library and go_test build rules from existing go code.
 - please
 
 ### Install
+In your please project create a file (`tools/wollemi/BUILD.plz`) with following content:
+
+```
+wollemi_archive = remote_file(
+    name = "wollemi",
+    _tag = "download",
+    url = f"https://github.com/tcncloud/wollemi/releases/download/v0.0.1/wollemi-v0.0.1-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
+)
+
+build_rule(
+    name = "wollemi",
+    binary = True,
+    srcs = [wollemi_archive],
+    cmd = " && ".join([
+        "tar xf $SRCS",
+    ]),
+    outs = ["wollemi"]
+)
+```
+Then you can run it by invoking please: `plz run //tools/wollemi`
+
+Or, just install it in your `GOPATH`:
+
 ```
 GO111MODULE=on go get github.com/tcncloud/wollemi
 ```
