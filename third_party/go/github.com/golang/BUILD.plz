@@ -1,14 +1,23 @@
 package(default_visibility = ["PUBLIC"])
 
-go_get(
+mock_download = remote_file(
+    name = 'mockgen',
+    _tag = 'download',
+    url = f'https://github.com/golang/mock/releases/download/v1.4.3/mock_1.4.3_{CONFIG.HOSTOS}_{CONFIG.HOSTARCH}.tar.gz',
+)
+
+
+build_rule(
     name = "mockgen",
     binary = True,
-    get = [],
-    install = ["github.com/golang/mock/mockgen"],
-    deps = [
-        ":mock",
-    ],
+    srcs = [mock_download],
+    cmd = ' && '.join([
+        'tar xf $SRCS',
+        'cp $(find . -name mockgen) .'
+    ]),
+    outs = ['mockgen']
 )
+
 
 go_get(
     name = "mock",
