@@ -1,5 +1,6 @@
 build:
-    image: thoughtmachine/please_ubuntu:latest
+    image: ubuntu:20.04 
     script:
+        - apt update && apt install -y build-essntial xz-utils git
         - ./pleasew test -p -v 2 
         - ./pleasew build -p -v 2 
