@@ -3,29 +3,29 @@ version: 2
 jobs:
   build-linux:
     working_directory: ~/please
-      docker:
-       - image: thoughtmachine/please-servers:20200407
-      steps:
-        - checkout
-        - restore_cache:
-            key: go-linux-main-v4-{{ checksum "go.mod/" }}
-        - run:
-            name: Test
-            command: ./pleasew test -p --profile ci -v 2
-        - store_test_results:
-            path: plz-out/results
-        - run:
-            name: Package
-            command: ./pleasew build -v 2  -p --profile ci
-        - persist_to_workspace:
-            root: plz-out/bin
-            paths:
-              - wollemi
-        - store_artifacts:
-            path: plz-out/log
-        - save_cache:
-            key: go-linux-main-v4-{{ checksum "go.mod" }}
-            paths: [ "go.mod" ]
+    docker:
+      - image: thoughtmachine/please-servers:20200407
+    steps:
+      - checkout
+      - restore_cache:
+          key: go-linux-main-v4-{{ checksum "go.mod/" }}
+      - run:
+          name: Test
+          command: ./pleasew test -p --profile ci -v 2
+      - store_test_results:
+          path: plz-out/results
+      - run:
+          name: Package
+          command: ./pleasew build -v 2  -p --profile ci
+      - persist_to_workspace:
+          root: plz-out/bin
+          paths:
+            - wollemi
+      - store_artifacts:
+          path: plz-out/log
+      - save_cache:
+          key: go-linux-main-v4-{{ checksum "go.mod" }}
+          paths: [ "go.mod" ]
   build-darwin:
     macos:
       xcode: "9.0"
