@@ -10,7 +10,7 @@ build_rule(
     cmd = ' && '.join([
         'tar xf $SRCS',
         # TODO make the next command optional only when CONFIG.HOSTOS != CONFIG.OS
-        'GOOS="darwin" GOARCH="amd64" GOROOT=$(pwd)/go GOPATH=$(pwd) go install -i std',
+        'GOOS="darwin" GOARCH="amd64" GOROOT=$(pwd)/go GOPATH=$(pwd) go/bin/go install -i std',
     ]),
     outs = ['go']
 )
