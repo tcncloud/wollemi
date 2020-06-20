@@ -19,3 +19,28 @@ go_get(
     repo = "github.com/golang/sys",
     revision = "ad400b1274690a55531a013560dc08706088f82b",
 )
+
+go_get(
+    name = "xerrors",
+    get = "golang.org/x/xerrors",
+    install = [
+        "",
+        "internal",
+    ],
+    repo = "github.com/golang/xerrors",
+    revision = "9bdfabe68543c54f90421aeb9a60ef8061b5b544",
+)
+
+go_get(
+    name = "mod",
+    get = "golang.org/x/mod",
+    install = [
+        "modfile",
+        "module",
+        "semver",
+        "internal/lazyregexp",
+    ],
+    repo = "github.com/golang/mod",
+    revision = "v0.3.0",
+    deps = [":xerrors"],
+)

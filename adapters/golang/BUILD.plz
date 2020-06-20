@@ -2,7 +2,10 @@ go_library(
     name = "golang",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
-    deps = ["//ports/golang"],
+    deps = [
+        "//ports/golang",
+        "//third_party/go/golang.org/x:mod",
+    ],
 )
 
 go_test(

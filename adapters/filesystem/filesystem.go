@@ -28,6 +28,10 @@ type Filesystem struct {
 	mu      sync.Mutex
 }
 
+func (*Filesystem) Chdir(dir string) error {
+	return os.Chdir(dir)
+}
+
 func (*Filesystem) RemoveAll(path string) error {
 	return os.RemoveAll(path)
 }

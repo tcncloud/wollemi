@@ -11,9 +11,7 @@ import (
 )
 
 func (this *Service) SymlinkGoPath(force bool, paths []string) error {
-	if len(paths) == 0 {
-		paths = []string{"..."}
-	}
+	paths = this.normalizePaths(paths)
 
 	r, err := this.please.QueryDeps(paths...)
 	if err != nil {
@@ -64,7 +62,7 @@ func (this *Service) SymlinkGoPath(force bool, paths []string) error {
 					WithField("build_target", target)
 
 				orig := this.GoSrcPath(gopkg)
-				dest := this.GoPkgPath("plz-out/gen/third_party/go", gopkg, "src", gopkg)
+				dest := filepath.Join(this.root, "plz-out/gen/third_party/go", gopkg, "src", gopkg)
 
 				err = (func() error {
 					err := this.filesystem.Walk(orig, func(path string, info os.FileInfo, err error) error {

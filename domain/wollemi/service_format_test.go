@@ -112,14 +112,24 @@ func (t *ServiceSuite) TestService_GoFormat() {
 }
 
 func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
-	t.golang.EXPECT().ImportDir(any).AnyTimes().
-		DoAndReturn(func(path string) (*golang.Package, error) {
+	t.golang.EXPECT().ImportDir(any, any).AnyTimes().
+		DoAndReturn(func(path string, names []string) (*golang.Package, error) {
 			gopkg, ok := td.ImportDir[path]
 			if !ok {
 				t.Errorf("unexpected call to golang import dir: %s", path)
 			}
 
 			return gopkg, nil
+		})
+
+	t.golang.EXPECT().IsGoroot(any).AnyTimes().
+		DoAndReturn(func(path string) bool {
+			goroot, ok := td.IsGoroot[path]
+			if !ok {
+				t.Errorf("unexpected call to golang is goroot: %s", path)
+			}
+
+			return goroot
 		})
 
 	t.please.EXPECT().Parse(any, any).AnyTimes().
@@ -165,6 +175,23 @@ func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
 			buf.WriteString(path)
 
 			return nil
+		})
+
+	t.filesystem.EXPECT().ReadDir(any).AnyTimes().
+		DoAndReturn(func(dir string) ([]os.FileInfo, error) {
+			var infos []os.FileInfo
+
+			for path, info := range td.Lstat {
+				if info != nil && filepath.Dir(path) == dir {
+					infos = append(infos, info)
+				}
+			}
+
+			if infos == nil {
+				return nil, os.ErrNotExist
+			}
+
+			return infos, nil
 		})
 
 	t.filesystem.EXPECT().Walk(any, any).AnyTimes().
@@ -242,6 +269,7 @@ func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
 type GoFormatTestData struct {
 	Config    map[string]*filesystem.Config
 	ImportDir map[string]*golang.Package
+	IsGoroot  map[string]bool
 	Lstat     map[string]*FileInfo
 	Parse     map[string]*please.BuildFile
 	ParseErr  map[string]error
@@ -259,6 +287,28 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 			"app/server":      &filesystem.Config{},
 			"app/protos":      &filesystem.Config{},
 			"app/protos/mock": &filesystem.Config{},
+		},
+		IsGoroot: map[string]bool{
+			"github.com/golang/mock/gomock":                    false,
+			"github.com/golang/protobuf/proto":                 false,
+			"github.com/golang/protobuf/proto/ptypes/wrappers": false,
+			"github.com/spf13/cobra":                           false,
+			"github.com/stretchr/testify/assert":               false,
+			"github.com/stretchr/testify/require":              false,
+			"github.com/wollemi_test/app/protos":               false,
+			"github.com/wollemi_test/app/protos/mock":          false,
+			"github.com/wollemi_test/app/server":               false,
+			"google.golang.org/grpc":                           false,
+			"google.golang.org/grpc/codes":                     false,
+			"google.golang.org/grpc/credentials":               false,
+			"google.golang.org/grpc/metadata":                  false,
+			"google.golang.org/grpc/status":                    false,
+			"testing":                                          true,
+			"fmt":                                              true,
+			"strings":                                          true,
+			"strconv":                                          true,
+			"encoding/json":                                    true,
+			"database/sql":                                     true,
 		},
 		ImportDir: map[string]*golang.Package{
 			"app/protos": &golang.Package{
@@ -292,10 +342,14 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"server.go",
 				},
 				Imports: []string{
-					"github.com/wollemi_test/app/protos",
+					"database/sql",
+					"encoding/json",
 					"github.com/golang/protobuf/proto/ptypes/wrappers",
+					"github.com/wollemi_test/app/protos",
 					"google.golang.org/grpc",
 					"google.golang.org/grpc/credentials",
+					"strconv",
+					"strings",
 				},
 				XTestGoFiles: []string{
 					"server_test.go",
@@ -306,6 +360,7 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"github.com/stretchr/testify/assert",
 					"github.com/stretchr/testify/require",
 					"github.com/wollemi_test/app/protos/mock",
+					"testing",
 				},
 			},
 			"app": &golang.Package{
@@ -314,8 +369,9 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"main.go",
 				},
 				Imports: []string{
-					"github.com/wollemi_test/app/server",
+					"fmt",
 					"github.com/spf13/cobra",
+					"github.com/wollemi_test/app/server",
 				},
 				TestGoFiles: []string{
 					"main_test.go",
@@ -324,6 +380,7 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"github.com/golang/mock/gomock",
 					"github.com/stretchr/testify/assert",
 					"github.com/stretchr/testify/require",
+					"testing",
 				},
 			},
 		},

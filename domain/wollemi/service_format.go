@@ -8,10 +8,13 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/tcncloud/wollemi/ports/filesystem"
 	"github.com/tcncloud/wollemi/ports/please"
+)
+
+const (
+	BUILD_FILE = "BUILD.plz"
 )
 
 func (this *Service) Format(paths []string) error {
@@ -19,24 +22,26 @@ func (this *Service) Format(paths []string) error {
 }
 
 func (this *Service) GoFormat(rewrite bool, paths []string) error {
+	paths = this.normalizePaths(paths)
+
+	log := this.log.WithField("rewrite", rewrite)
 	for i, path := range paths {
-		paths[i] = strings.TrimSuffix(path, "/")
+		log = log.WithField(fmt.Sprintf("path[%d]", i), path)
 	}
 
-	if len(paths) == 0 {
-		paths = []string{"..."}
-	}
-
-	this.log.WithField("rewrite", rewrite).
-		WithField("go_package", this.gopkg).
-		WithField("go_source", this.gosrc).
-		Debug("run")
+	log.Debug("running gofmt")
 
 	collect := make(chan *Directory, 1000)
-	walk := make(chan *Directory, 1000)
 	parse := make(chan *Directory, 1000)
+	walk := make(chan *Directory, 1000)
 
-	for i := 0; i < 1; i++ {
+	directories := make(map[string]*Directory)
+	external := make(map[string][]string)
+	internal := make(map[string]string)
+	genfiles := make(map[string]string)
+	isGoroot := make(map[string]bool)
+
+	for i := 0; i < runtime.NumCPU()-1; i++ {
 		go func() {
 			var buf bytes.Buffer
 
@@ -44,149 +49,155 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 				dir.InRunPath = inRunPath(dir.Path, paths...)
 				dir.Rewrite = rewrite
 
-				collect <- this.Parse(&buf, dir)
+				nonBlockingSend(collect, this.ParseDir(&buf, dir))
 			}
 		}()
 	}
 
-	directories := make(map[string]*Directory)
-	external := make(map[string][]string)
-	internal := make(map[string]string)
-	genfiles := make(map[string]string)
-
-	var collector sync.WaitGroup
-
-	collector.Add(1)
-	go func() {
-		defer collector.Done()
-		defer close(parse)
-
-		delegated := make(map[string]struct{})
-		parsing := 0
-
-		for walk != nil || parsing > 0 {
-			select {
-			case dir, ok := <-walk:
-				if !ok {
-					walk = nil
-				} else {
-					nonBlockingSend(parse, dir)
-					parsing++
-				}
-			case dir := <-collect:
-				parsing--
-
-				if !dir.Ok {
-					continue
-				}
-
-				directories[dir.Path] = dir
-
-				if dir.Gopkg != nil {
-					for _, group := range [][]string{
-						dir.Gopkg.Imports,
-						dir.Gopkg.TestImports,
-						dir.Gopkg.XTestImports,
-					} {
-					Group:
-						for _, godep := range group {
-							path := godep
-
-							if strings.HasPrefix(path, this.gopkg) {
-								path = strings.TrimPrefix(path, this.gopkg+"/")
-							} else {
-								path = filepath.Join("third_party/go", path)
-							}
-
-							if _, ok := external[godep]; ok {
-								continue
-							}
-
-							if inRunPath(path, paths...) {
-								continue
-							}
-
-							chunks := strings.Split(path, "/")
-
-							for i := len(chunks); i > 0; i-- {
-								path := filepath.Join(chunks[0:i]...)
-
-								if _, ok := delegated[path]; ok {
-									continue Group
-								}
-
-								if _, ok := directories[path]; ok {
-									continue Group
-								}
-
-								buildPath := filepath.Join(path, "BUILD.plz")
-
-								_, err := this.filesystem.Stat(buildPath)
-								if os.IsNotExist(err) {
-									continue
-								}
-
-								if err != nil {
-									this.log.WithError(err).
-										WithField("path", path).
-										Warn("could not stat build file")
-
-									continue
-								}
-
-								delegated[path] = struct{}{}
-								parsing++
-
-								nonBlockingSend(parse, &Directory{Rule: godep, Path: path, Ok: true})
-								break
-							}
-						}
-					}
-				}
-
-				dir.Build.GetRules(func(rule please.Rule) {
-					switch rule.Kind() {
-					case "go_copy", "go_mock", "go_library", "go_test", "grpc_library":
-						name := rule.AttrString("name")
-
-						target, path := dir.Path, dir.Path
-						if filepath.Base(path) != name {
-							path = filepath.Join(path, name)
-							target += ":" + name
-						}
-
-						internal[path] = "//" + target
-
-						if rule.Kind() == "go_copy" {
-							genfiles[path+".cp.go"] = target
-						}
-					case "go_get", "go_get_with_sources":
-						get := strings.TrimSuffix(rule.AttrString("get"), "/...")
-						name := rule.AttrString("name")
-
-						target := dir.Path
-						if filepath.Base(dir.Path) != name {
-							target += ":" + name
-						}
-
-						if rule.Kind() == "go_get_with_sources" {
-							get = rule.AttrStrings("outs")[0]
-						}
-
-						if get != "" && rule.AttrLiteral("binary") != "True" {
-							external[get] = append(external[get], "//"+target)
-						}
-					}
-				})
-			}
-		}
-	}()
-
-	if err := this.Walk(walk, paths...); err != nil {
+	if err := this.ReadDirs(walk, paths...); err != nil {
 		return fmt.Errorf("could not walk: %v", err)
 	}
 
-	collector.Wait()
+	delegated := make(map[string]struct{})
+	parsing := 0
+
+	for walk != nil || parsing > 0 {
+		select {
+		case dir, ok := <-walk:
+			if !ok {
+				walk = nil
+			} else {
+				parse <- dir
+				parsing++
+			}
+		case dir := <-collect:
+			parsing--
+
+			if !dir.Ok {
+				continue
+			}
+
+			directories[dir.Path] = dir
+
+			if dir.Gopkg != nil {
+				for _, imports := range [][]string{
+					dir.Gopkg.Imports,
+					dir.Gopkg.TestImports,
+					dir.Gopkg.XTestImports,
+				} {
+				Imports:
+					for _, godep := range imports {
+						var prefix bool
+
+						goroot, ok := isGoroot[godep]
+						if !ok {
+							if prefix = strings.HasPrefix(godep, this.gopkg); prefix {
+								goroot = false
+							} else {
+								goroot = this.golang.IsGoroot(godep)
+							}
+
+							isGoroot[godep] = goroot
+						}
+
+						if goroot {
+							continue
+						}
+
+						path := godep
+
+						if prefix || strings.HasPrefix(path, this.gopkg) {
+							path = strings.TrimPrefix(path, this.gopkg+"/")
+						} else {
+							path = filepath.Join("third_party/go", path)
+						}
+
+						if _, ok := external[godep]; ok {
+							continue
+						}
+
+						if inRunPath(path, paths...) {
+							continue
+						}
+
+						chunks := strings.Split(path, "/")
+
+						for i := len(chunks); i > 0; i-- {
+							path := filepath.Join(chunks[0:i]...)
+
+							if _, ok := delegated[path]; ok {
+								continue Imports
+							}
+
+							if _, ok := directories[path]; ok {
+								continue Imports
+							}
+
+							dir, err := this.ReadDir(path)
+							if os.IsNotExist(err) {
+								continue
+							}
+
+							if err != nil {
+								this.log.WithError(err).
+									WithField("path", path).
+									Warn("could not read dir")
+
+								continue
+							}
+
+							if len(dir.BuildFiles) == 0 {
+								continue
+							}
+
+							delegated[path] = struct{}{}
+
+							parsing++
+							parse <- dir
+							break
+						}
+					}
+				}
+			}
+
+			dir.Build.GetRules(func(rule please.Rule) {
+				switch rule.Kind() {
+				case "go_copy", "go_mock", "go_library", "go_test", "grpc_library":
+					name := rule.AttrString("name")
+
+					target, path := dir.Path, dir.Path
+					if filepath.Base(path) != name {
+						path = filepath.Join(path, name)
+						target += ":" + name
+					}
+
+					internal[path] = "//" + target
+
+					if rule.Kind() == "go_copy" {
+						genfiles[path+".cp.go"] = target
+					}
+				case "go_get", "go_get_with_sources":
+					get := strings.TrimSuffix(rule.AttrString("get"), "/...")
+					name := rule.AttrString("name")
+
+					target := dir.Path
+					if filepath.Base(dir.Path) != name {
+						target += ":" + name
+					}
+
+					if rule.Kind() == "go_get_with_sources" {
+						get = rule.AttrStrings("outs")[0]
+					}
+
+					if get != "" && rule.AttrLiteral("binary") != "True" {
+						external[get] = append(external[get], "//"+target)
+					}
+				}
+			})
+		}
+	}
+
+	close(parse)
 
 	get := NewChanFunc(1, 0)
 	gen := NewChanFunc(runtime.NumCPU()-1, 0)
@@ -257,10 +268,19 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 		path, dir := path, dir
 
+		var deps []string
+		var unresolved []string
+		var include []string
+		var exclude []string
+		var targets []string
+		var goFiles []string
+		var imports []string
+
 		gen.Run(func() {
 			config := this.filesystem.Config(path)
 
 			rulesByKind := make(map[string][]please.Rule)
+			isGeneratedRule := make(map[string]struct{})
 
 			dir.Build.GetRules(func(rule please.Rule) {
 				kind := rule.Kind()
@@ -289,6 +309,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 						name := filepath.Base(dir.Path)
 						rule := this.please.NewRule(kind, name)
 						rulesByKind[kind] = []please.Rule{rule}
+						isGeneratedRule[name] = struct{}{}
 					}
 				}
 
@@ -298,16 +319,18 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 					if len(rules) == 0 {
 						rule := this.please.NewRule(kind, "test")
 						rulesByKind[kind] = []please.Rule{rule}
+						isGeneratedRule["test"] = struct{}{}
 					}
 				}
 			Rules:
 				for _, kind := range []string{"go_binary", "go_library", "go_test"} {
 					rules := rulesByKind[kind]
-					if len(rules) == 0 {
-						continue
-					}
 
-					if len(rules) > 1 {
+					switch len(rules) {
+					case 0:
+						continue
+					case 1:
+					default:
 						var ok bool
 
 						switch kind {
@@ -344,11 +367,12 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 						}
 					}
 
-					var goFiles []string
-					var imports []string
 					var external bool
 					var includePattern string
 					var excludePattern string
+
+					goFiles = goFiles[:0]
+					imports = imports[:0]
 
 					switch kind {
 					case "go_binary", "go_library":
@@ -396,11 +420,13 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 					log := log.WithField("build_rule", ruleName)
 
-					n := len(goFiles)
+					include = include[:0]
+					exclude = exclude[:0]
+					targets = targets[:0]
 
-					include := make([]string, 0, n)
-					exclude := make([]string, 0, n)
-					targets := make([]string, 0, n)
+					if !external {
+						exclude = append(exclude, gopkg.IgnoredGoFiles...)
+					}
 
 					if includePattern != "" {
 						include = append(include, includePattern)
@@ -419,13 +445,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 						target, _ := getTarget(config, relpath, true)
 						if target == "" {
-							info, err := this.filesystem.Lstat(relpath)
-							if err != nil {
-								log.WithError(err).Warn("could not lstat")
-
-								continue
-							}
-
+							info := dir.Files[filename]
 							if info.Mode()&os.ModeSymlink == 0 { // is not symlink
 								srcLen++
 
@@ -476,16 +496,20 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 						continue
 					}
 
+					deps = deps[:0]
+					unresolved = unresolved[:0]
 					srcs := please.Glob(include, exclude, targets...)
-					deps := make([]string, 0, len(imports))
-					dedup := make(map[string]struct{})
-					unresolved := make([]string, 0, len(imports))
+					dedup := make(map[string]struct{}, len(imports))
 
 					for _, godep := range imports {
+						if isGoroot[godep] {
+							continue
+						}
+
 						target, _ := getTarget(config, godep, false)
 						if target == "" {
-							log.WithField("godep", godep).
-								Error("could not resolve godep")
+							log.WithField("go_import", godep).
+								Error("could not resolve go import")
 
 							unresolved = append(unresolved, godep)
 
@@ -518,7 +542,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 							rule.DelAttr("external")
 						}
 					case "go_binary", "go_library":
-						if rule.AttrStrings("visibility") == nil {
+						if _, ok := isGeneratedRule[ruleName]; ok {
 							visibility := config.DefaultVisibility
 
 							if visibility == "" {
@@ -552,8 +576,9 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 					rule.SetAttr("deps", please.Strings(deps...))
 
-					// TODO: only if new rule?
-					dir.Build.SetRule(rule)
+					if _, ok := isGeneratedRule[ruleName]; ok {
+						dir.Build.SetRule(rule)
+					}
 				}
 			}
 

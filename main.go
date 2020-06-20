@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,20 +50,55 @@ func (app *Application) Wollemi() (ctl.Wollemi, error) {
 		wd = path
 	}
 
-	gosrc := filepath.Join(os.Getenv("GOPATH"), "src") + "/"
+	log := app.Logger()
+	golang := golang.NewImporter()
+	filesystem := filesystem.NewFilesystem(log)
 
-	if !strings.HasPrefix(wd, gosrc) {
-		return nil, fmt.Errorf("working directory not in gopath")
+	root, ok := (func(path string) (string, bool) {
+		for ; path != "/"; path = filepath.Dir(path) {
+			_, err := filesystem.Stat(filepath.Join(path, ".plzconfig"))
+			if err == nil {
+				return path, true
+			}
+		}
+
+		return "", false
+	}(wd))
+
+	if !ok {
+		return nil, fmt.Errorf("could not find root .plzconfig")
 	}
 
-	gopkg := strings.TrimPrefix(wd, gosrc)
+	if err := filesystem.Chdir(root); err != nil {
+		return nil, fmt.Errorf("could not chdir: %v", err)
+	}
 
-	var (
-		log        = app.Logger()
-		filesystem = filesystem.NewFilesystem(log)
-		bazel      = bazel.NewBuilder(log, please.NewCtl(), filesystem)
-		golang     = golang.NewImporter()
-	)
+	gosrc := filepath.Join(golang.GOPATH(), "src") + "/"
 
-	return wollemi.New(log, filesystem, golang, bazel, gosrc, gopkg), nil
+	var gopkg string
+
+	buf := bytes.NewBuffer(nil)
+	if err := filesystem.ReadAll(buf, filepath.Join(root, "go.mod")); err == nil {
+		gopkg = golang.ModulePath(buf.Bytes())
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("could not read go.mod: %v", err)
+	}
+
+	if gopkg == "" {
+		if !strings.HasPrefix(root, gosrc) {
+			return nil, fmt.Errorf("project root must have go.mod or exist in go path")
+		}
+
+		gopkg = strings.TrimPrefix(root, gosrc)
+	}
+
+	bazel := bazel.NewBuilder(log, please.NewCtl(), filesystem)
+
+	log.WithField("working_directory", wd).
+		WithField("project_root", root).
+		WithField("go_source_path", gosrc).
+		WithField("go_package", gopkg).
+		Debug("wollemi initialized")
+
+	return wollemi.New(log, filesystem, golang, bazel, root, wd, gosrc, gopkg), nil
 }

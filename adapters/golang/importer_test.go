@@ -20,8 +20,8 @@ func TestImporter_ImportDir(t *testing.T) {
 	t.Run("errors when package dir does not exist", func(t *testing.T) {
 		importer := golang.NewImporter()
 
-		pkg, err := importer.ImportDir("foo/bar/baz")
-		require.EqualError(t, err, "cannot find package \".\" in:\n\tfoo/bar/baz")
+		pkg, err := importer.ImportDir("foo/bar", []string{"baz.go"})
+		require.EqualError(t, err, "open foo/bar/baz.go: no such file or directory")
 		require.Nil(t, pkg)
 	})
 
@@ -57,16 +57,23 @@ func TestImporter_ImportDir(t *testing.T) {
 
 		// ---------------------------------------------------------------------
 
-		have, err := importer.ImportDir(filepath.Join(tmp, "adder"))
+		have, err := importer.ImportDir(filepath.Join(tmp, "adder"), []string{
+			"adder_test.go",
+			"adder.go",
+		})
+
 		require.NoError(t, err)
 
 		want := &golang.Package{
 			Name: "adder",
 			Imports: []string{
+				"database/sql",
+				"fmt",
 				"github.com/spf13/viper",
 			},
 			XTestImports: []string{
 				"github.com/stretchr/testify/require",
+				"testing",
 			},
 			GoFiles: []string{
 				"adder.go",
@@ -80,7 +87,11 @@ func TestImporter_ImportDir(t *testing.T) {
 
 		// ---------------------------------------------------------------------
 
-		have, err = importer.ImportDir(filepath.Join(tmp, "multiplier"))
+		have, err = importer.ImportDir(filepath.Join(tmp, "multiplier"), []string{
+			"multiplier_test.go",
+			"multiplier.go",
+		})
+
 		require.NoError(t, err)
 
 		want = &golang.Package{
@@ -91,10 +102,15 @@ func TestImporter_ImportDir(t *testing.T) {
 				"github.com/wollemi_test/project/service/routes/async",
 				"github.com/wollemi_test/project/service/routes/client",
 				"github.com/wollemi_test/project/service/routes/server",
+				"go/ast",
+				"go/build",
 			},
 			TestImports: []string{
+				"encoding/json",
+				"fmt",
 				"github.com/golang/mock/gomock",
 				"github.com/stretchr/testify/require",
+				"testing",
 			},
 			GoFiles: []string{
 				"multiplier.go",

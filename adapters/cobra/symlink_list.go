@@ -3,7 +3,6 @@ package cobra
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -61,8 +60,7 @@ func SymlinkListCmd(app ctl.Application) *cobra.Command {
 					return fmt.Errorf("cannot use --go-path with arguments")
 				}
 
-				gopkg := strings.TrimPrefix(wollemi.GoPkgPath(), wollemi.GoSrcPath()+"/")
-				exclude = append(exclude, gopkg)
+				exclude = append(exclude, wollemi.GoPkgPath())
 				args = []string{filepath.Join(wollemi.GoSrcPath(), "...")}
 			}
 

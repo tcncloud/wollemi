@@ -71,3 +71,13 @@ func nonBlockingSend(ch chan *Directory, dir *Directory) {
 		go func() { ch <- dir }()
 	}
 }
+
+func isBuildFile(name string) bool {
+	for _, want := range []string{"BUILD.plz", "BUILD"} {
+		if name == want {
+			return true
+		}
+	}
+
+	return false
+}

@@ -2,6 +2,7 @@ package wollemi_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -64,6 +65,8 @@ func (suite *ServiceSuite) New(gosrc, gopkg string) *wollemi.Service {
 		suite.filesystem,
 		suite.golang,
 		suite.please,
+		filepath.Join(gosrc, gopkg),
+		filepath.Join(gosrc, gopkg),
 		gosrc,
 		gopkg,
 	)

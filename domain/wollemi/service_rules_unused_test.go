@@ -2,6 +2,7 @@ package wollemi_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -146,6 +147,39 @@ func (t *ServiceSuite) MockRulesUnused() {
 	}
 
 	t.please.EXPECT().Graph().Return(graph, nil)
+
+	t.filesystem.EXPECT().ReadDir(any).AnyTimes().
+		DoAndReturn(func(path string) (infos []os.FileInfo, err error) {
+			switch path {
+			case "app":
+				infos = []os.FileInfo{
+					&FileInfo{
+						FileName: "main.go",
+						FileMode: os.FileMode(420),
+					},
+					&FileInfo{
+						FileName: "main_test.go",
+						FileMode: os.FileMode(420),
+					},
+					&FileInfo{
+						FileName: "BUILD.plz",
+						FileMode: os.FileMode(420),
+					},
+				}
+			case "third_party/go/github.com/spf13":
+				infos = []os.FileInfo{
+					&FileInfo{
+						FileName: "BUILD.plz",
+						FileMode: os.FileMode(420),
+					},
+				}
+			default:
+				t.Errorf("unexpected call to filesystem read dir: %s", path)
+				err = os.ErrNotExist
+			}
+
+			return infos, err
+		})
 
 	t.filesystem.EXPECT().ReadAll(any, any).AnyTimes().
 		DoAndReturn(func(buf *bytes.Buffer, path string) error {

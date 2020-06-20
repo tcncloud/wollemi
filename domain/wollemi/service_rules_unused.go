@@ -3,7 +3,6 @@ package wollemi
 import (
 	"bytes"
 	"fmt"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,9 +16,7 @@ func (this *Service) RulesUnused(prune bool, kinds, paths, exclude []string) err
 		return err
 	}
 
-	if len(paths) == 0 {
-		paths = []string{"..."}
-	}
+	paths = this.normalizePaths(paths)
 
 	if len(kinds) == 0 {
 		kinds = []string{
@@ -66,13 +63,16 @@ func (this *Service) RulesUnused(prune bool, kinds, paths, exclude []string) err
 			buf := bytes.NewBuffer(nil)
 
 			for dir := range parse {
-				buildPath := filepath.Join(dir.Path, "BUILD.plz")
-
 				dir.Build = (func() please.File {
 					log := this.log.WithField("path", dir.Path)
 
-					err := this.filesystem.ReadAll(buf, buildPath)
+					buildPath, err := this.FindBuildFile(dir.Path)
 					if err != nil {
+						log.WithError(err).Warn("could not find build file")
+						return nil
+					}
+
+					if err := this.filesystem.ReadAll(buf, buildPath); err != nil {
 						log.WithError(err).Warn("could not read build file")
 						return nil
 					}

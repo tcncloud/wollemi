@@ -7,9 +7,7 @@ import (
 )
 
 func (this *Service) SymlinkList(name string, broken, prune bool, exclude, include []string) {
-	if len(include) == 0 {
-		include = []string{"..."}
-	}
+	include = this.normalizePaths(include)
 
 	for _, target := range include {
 		targetPath, targetName := split(target)
@@ -33,7 +31,6 @@ func (this *Service) SymlinkList(name string, broken, prune bool, exclude, inclu
 				}
 
 				path := strings.TrimPrefix(path, this.GoSrcPath()+"/")
-
 				for _, prefix := range exclude {
 					if strings.HasPrefix(path, prefix) {
 						return filepath.SkipDir
@@ -65,10 +62,10 @@ func (this *Service) SymlinkList(name string, broken, prune bool, exclude, inclu
 					return nil
 				}
 
-				if strings.HasPrefix(link, this.GoPkgPath()) {
+				if strings.HasPrefix(link, this.root) {
 					log := this.log.
 						WithField("link", strings.TrimPrefix(path, this.GoSrcPath()+"/")).
-						WithField("path", strings.TrimPrefix(link, this.GoPkgPath()+"/"))
+						WithField("path", strings.TrimPrefix(link, this.root+"/"))
 
 					if broken {
 						_, err := this.filesystem.Stat(link)

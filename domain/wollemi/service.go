@@ -2,9 +2,12 @@ package wollemi
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/tcncloud/wollemi/ports/golang"
 	"github.com/tcncloud/wollemi/ports/logging"
@@ -17,6 +20,8 @@ func New(
 	filesystem wollemi.Filesystem,
 	golang golang.Importer,
 	please please.Builder,
+	root string,
+	wd string,
 	gosrc string,
 	gopkg string,
 ) *Service {
@@ -25,6 +30,8 @@ func New(
 		filesystem: filesystem,
 		golang:     golang,
 		please:     please,
+		root:       root,
+		wd:         wd,
 		gopkg:      gopkg,
 		gosrc:      gosrc,
 	}
@@ -35,123 +42,232 @@ type Service struct {
 	filesystem wollemi.Filesystem
 	golang     golang.Importer
 	please     please.Builder
+	root       string
+	wd         string
 	gosrc      string
 	gopkg      string
 }
 
-func (this *Service) GoPkgPath(elem ...string) string {
-	return this.GoSrcPath(this.gopkg, filepath.Join(elem...))
+func (this *Service) normalizePaths(paths []string) []string {
+	if len(paths) == 0 {
+		paths = []string{"..."}
+	}
+
+	var relpath string
+
+	if this.wd != this.root && strings.HasPrefix(this.wd, this.root) {
+		relpath = strings.TrimPrefix(this.wd, this.root+"/")
+
+		for i, path := range paths {
+			paths[i] = filepath.Join(relpath, strings.TrimSuffix(path, "/"))
+		}
+	}
+
+	return paths
+}
+
+func (this *Service) FindBuildFile(dir string) (string, error) {
+	infos, err := this.filesystem.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+
+	var paths []string
+
+	for _, info := range infos {
+		name := info.Name()
+		if isBuildFile(name) {
+			paths = append(paths, filepath.Join(dir, name))
+		}
+	}
+
+	var path string
+
+	switch len(paths) {
+	case 0:
+		err = os.ErrNotExist
+	case 1:
+		path = paths[0]
+	default:
+		err = fmt.Errorf("ambiguous build files: (%s)", strings.Join(paths, ", "))
+	}
+
+	return path, err
 }
 
 func (this *Service) GoSrcPath(elem ...string) string {
 	return filepath.Join(this.gosrc, filepath.Join(elem...))
 }
 
-func (this *Service) Walk(out chan *Directory, paths ...string) error {
-	defer close(out)
+func (this *Service) GoPkgPath(elem ...string) string {
+	return filepath.Join(this.gopkg, filepath.Join(elem...))
+}
 
-	for _, path := range paths {
-		if filepath.Base(path) != "..." {
-			out <- &Directory{Path: path, Ok: true}
+func (this *Service) ReadDir(path string) (*Directory, error) {
+	infos, err := this.filesystem.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	dir := &Directory{
+		Files: make(map[string]os.FileInfo, len(infos)),
+		Path:  path,
+		Ok:    true,
+	}
+
+	for _, info := range infos {
+		name := info.Name()
+
+		dir.Files[name] = info
+
+		if info.IsDir() {
 			continue
 		}
 
-		dir := filepath.Dir(path)
-		err := this.filesystem.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
+		if isBuildFile(name) {
+			dir.BuildFiles = append(dir.BuildFiles, name)
+		}
 
-			name := info.Name()
-
-			if info.IsDir() {
-				if name != "." && strings.HasPrefix(name, ".") {
-					return filepath.SkipDir
-				}
-
-				if name == "plz-out" {
-					return filepath.SkipDir
-				}
-
-				out <- &Directory{Path: path, Ok: true}
-			}
-
-			return nil
-		})
-
-		if err != nil {
-			return err
+		if filepath.Ext(name) == ".go" {
+			dir.GoFiles = append(dir.GoFiles, name)
+			dir.HasGoFile = true
 		}
 	}
+
+	return dir, nil
+}
+
+func (this *Service) ReadDirs(out chan *Directory, paths ...string) error {
+	in := make(chan string, 1000)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for path := range in {
+				recursive := filepath.Base(path) == "..."
+				if recursive {
+					path = filepath.Dir(path)
+				}
+
+				dir, err := this.ReadDir(path)
+				if err != nil {
+					wg.Done()
+					continue
+				}
+
+				for name, info := range dir.Files {
+					if info.IsDir() {
+						if name != "." && strings.HasPrefix(name, ".") {
+							continue
+						}
+
+						if name == "plz-out" {
+							continue
+						}
+
+						path := filepath.Join(dir.Path, name)
+						if recursive {
+							path = filepath.Join(path, "...")
+						}
+
+						wg.Add(1)
+						select {
+						case in <- path:
+						default:
+							go func() {
+								in <- path
+							}()
+						}
+					}
+				}
+
+				out <- dir
+				wg.Done()
+			}
+		}()
+	}
+
+	go func() {
+		for _, path := range paths {
+			wg.Add(1)
+			in <- path
+		}
+
+		wg.Wait()
+		close(in)
+		close(out)
+	}()
 
 	return nil
 }
 
-func (this *Service) Parse(buf *bytes.Buffer, dir *Directory) *Directory {
+func (this *Service) ParseDir(buf *bytes.Buffer, dir *Directory) *Directory {
 	log := this.log.WithField("path", dir.Path)
 
-	var parsedPlzBuild bool
+	if len(dir.BuildFiles) > 1 {
+		msg := "ambiguous build files: (%s)"
+		log.WithError(fmt.Errorf(msg, strings.Join(dir.BuildFiles, ", "))).
+			Warn("could not parse dir")
 
-	defer func() {
-		log.WithField("go_package", dir.Gopkg != nil).
-			WithField("build_file", parsedPlzBuild).
-			Debug("parsed")
+		dir.Ok = false
 
-	}()
+		return dir
+	}
 
-	if dir.InRunPath && dir.Rewrite {
-		gopkg, err := this.golang.ImportDir(dir.Path)
+	var buildPath string
+
+	if len(dir.BuildFiles) == 0 {
+		buildPath = filepath.Join(dir.Path, BUILD_FILE)
+	} else {
+		buildPath = filepath.Join(dir.Path, dir.BuildFiles[0])
+
+		if err := this.filesystem.ReadAll(buf, buildPath); err != nil {
+			log.WithError(err).Warn("could not read build file")
+			dir.Ok = false
+
+			return dir
+		}
+
+		build, err := this.please.Parse(buildPath, buf.Bytes())
+		if err != nil {
+			log.WithError(err).Warn("could not parse build file")
+			dir.Ok = false
+
+			return dir
+		}
+
+		dir.Build = build
+	}
+
+	if dir.HasGoFile && dir.Rewrite && dir.InRunPath {
+		gopkg, err := this.golang.ImportDir(dir.Path, dir.GoFiles)
 		if err == nil {
 			dir.Gopkg = gopkg
 		} else if !noBuildableGoSources(err) {
 			log.WithError(err).Warn("could not build go import directory")
 		}
-	}
 
-	buildPath := filepath.Join(dir.Path, "BUILD.plz")
-
-	if err := this.filesystem.ReadAll(buf, buildPath); err != nil {
-		if !os.IsNotExist(err) {
-			dir.Ok = false
-			log.WithError(err).Warn("could not read build file")
-		} else if dir.Gopkg != nil {
-			generate := len(dir.Gopkg.GoFiles) > 0 ||
-				len(dir.Gopkg.TestGoFiles) > 0 ||
-				len(dir.Gopkg.XTestGoFiles) > 0
-
-			if generate {
-				dir.Build = this.please.NewFile(buildPath)
-			} else {
-				dir.Ok = false
-			}
-		} else {
-			dir.Ok = false
+		if dir.Build == nil {
+			dir.Build = this.please.NewFile(buildPath)
 		}
-
-		return dir
 	}
 
-	file, err := this.please.Parse(buildPath, buf.Bytes())
-	if err != nil {
-		log.WithError(err).Warn("could not parse build file")
-		dir.Ok = false
-
-		return dir
-	} else {
-		parsedPlzBuild = true
-	}
-
-	dir.Build = file
+	dir.Ok = dir.Build != nil
 
 	return dir
 }
 
 type Directory struct {
-	Path      string
-	Rule      string
-	Gopkg     *golang.Package
-	Build     please.File
-	Ok        bool
-	Rewrite   bool
-	InRunPath bool
+	Path       string
+	Rule       string
+	Gopkg      *golang.Package
+	Build      please.File
+	Ok         bool
+	Rewrite    bool
+	InRunPath  bool
+	Files      map[string]os.FileInfo
+	GoFiles    []string
+	BuildFiles []string
+	HasGoFile  bool
 }
