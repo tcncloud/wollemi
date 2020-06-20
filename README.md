@@ -9,16 +9,14 @@ go_library and go_test build rules from existing go code.
 In your please project create a file (`tools/wollemi/BUILD.plz`) with following content:
 
 ```
-wollemi_archive = remote_file(
-    name = "wollemi",
-    _tag = "download",
-    url = f"https://github.com/tcncloud/wollemi/releases/download/v0.0.2/wollemi-v0.0.2-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
-)
-
 build_rule(
     name = "wollemi",
     binary = True,
-    srcs = [wollemi_archive],
+    srcs = [remote_file(
+        name = "wollemi",
+        _tag = "download",
+        url = f"https://github.com/tcncloud/wollemi/releases/download/v0.0.2/wollemi-v0.0.2-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
+    )],
     cmd = " && ".join([
         "tar xf $SRCS",
     ]),
