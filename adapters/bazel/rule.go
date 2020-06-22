@@ -16,8 +16,8 @@ type Rule struct {
 	*build.Rule
 }
 
-func (this *Rule) Unwrap() *build.Rule {
-	return this.Rule
+func (this *Rule) Unwrap() *please.CallExpr {
+	return encode.CallExpr(this.Rule.Call)
 }
 
 func (this *Rule) Comment() please.Comments {

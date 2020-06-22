@@ -40,7 +40,10 @@ func (this *Importer) ModulePath(buf []byte) string {
 }
 
 func (this *Importer) ImportDir(dir string, names []string) (*Package, error) {
-	out := &Package{}
+	out := &Package{
+		GoFileImports: make(map[string][]string, len(names)),
+	}
+
 	fset := token.NewFileSet()
 
 	for _, name := range names {
@@ -89,10 +92,14 @@ func (this *Importer) ImportDir(dir string, names []string) (*Package, error) {
 
 		*gofiles = append(*gofiles, name)
 
+		out.GoFileImports[name] = nil
+
 	FileImports:
 		for _, spec := range file.Imports {
 			path := spec.Path.Value
 			path = path[1 : len(path)-1]
+
+			out.GoFileImports[name] = append(out.GoFileImports[name], path)
 
 			for _, have := range *imports {
 				if path == have {

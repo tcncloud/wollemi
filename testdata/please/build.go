@@ -140,6 +140,10 @@ type Rule struct {
 	Call *please.CallExpr
 }
 
+func (this *Rule) Unwrap() *please.CallExpr {
+	return this.Call
+}
+
 func (this *Rule) Attr(key string) please.Expr {
 	for _, attr := range this.Call.List {
 		switch assign := attr.(type) {

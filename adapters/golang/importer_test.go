@@ -81,6 +81,17 @@ func TestImporter_ImportDir(t *testing.T) {
 			XTestGoFiles: []string{
 				"adder_test.go",
 			},
+			GoFileImports: map[string][]string{
+				"adder_test.go": []string{
+					"testing",
+					"github.com/stretchr/testify/require",
+				},
+				"adder.go": []string{
+					"database/sql",
+					"fmt",
+					"github.com/spf13/viper",
+				},
+			},
 		}
 
 		require.Equal(t, want, have)
@@ -117,6 +128,24 @@ func TestImporter_ImportDir(t *testing.T) {
 			},
 			TestGoFiles: []string{
 				"multiplier_test.go",
+			},
+			GoFileImports: map[string][]string{
+				"multiplier_test.go": []string{
+					"encoding/json",
+					"fmt",
+					"testing",
+					"github.com/stretchr/testify/require",
+					"github.com/golang/mock/gomock",
+				},
+				"multiplier.go": []string{
+					"go/build",
+					"go/ast",
+					"github.com/coreos/rkt/pkg/lock",
+					"github.com/wollemi_test/project/proto",
+					"github.com/wollemi_test/project/service/routes/async",
+					"github.com/wollemi_test/project/service/routes/client",
+					"github.com/wollemi_test/project/service/routes/server",
+				},
 			},
 		}
 

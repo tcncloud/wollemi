@@ -11,7 +11,6 @@ func SymlinkGoPathCmd(app ctl.Application) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "go-path [path...]",
-		Args:  cobra.MinimumNArgs(1),
 		Short: "symlink third party dependencies into go path",
 		Long: Description(`
 			Symlinks third party dependencies into the go path. Symlinks will not be created

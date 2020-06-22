@@ -162,7 +162,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 			dir.Build.GetRules(func(rule please.Rule) {
 				switch rule.Kind() {
-				case "go_copy", "go_mock", "go_library", "go_test", "grpc_library":
+				case "go_copy", "go_mock", "go_library", "go_test", "grpc_library", "proto_library":
 					name := rule.AttrString("name")
 
 					target, path := dir.Path, dir.Path
@@ -305,8 +305,8 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 					}
 
 					rules := rulesByKind[kind]
-					if len(rules) == 0 {
-						name := filepath.Base(dir.Path)
+					name := filepath.Base(dir.Path)
+					if len(rules) == 0 && dir.Build.GetRule(name) == nil {
 						rule := this.please.NewRule(kind, name)
 						rulesByKind[kind] = []please.Rule{rule}
 						isGeneratedRule[name] = struct{}{}
@@ -316,268 +316,293 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 				if len(gopkg.TestGoFiles)+len(gopkg.XTestGoFiles) > 0 {
 					kind := "go_test"
 					rules := rulesByKind[kind]
-					if len(rules) == 0 {
-						rule := this.please.NewRule(kind, "test")
+					name := "test"
+					if len(rules) == 0 && dir.Build.GetRule(name) == nil {
+						rule := this.please.NewRule(kind, name)
 						rulesByKind[kind] = []please.Rule{rule}
-						isGeneratedRule["test"] = struct{}{}
+						isGeneratedRule[name] = struct{}{}
 					}
 				}
+
 			Rules:
 				for _, kind := range []string{"go_binary", "go_library", "go_test"} {
 					rules := rulesByKind[kind]
 
-					switch len(rules) {
-					case 0:
-						continue
-					case 1:
-					default:
-						var ok bool
+					for _, rule := range rules {
+						for _, comment := range rule.Comment().Before {
+							token := strings.TrimSpace(comment.Token)
 
-						switch kind {
-						case "go_binary":
-						case "go_library":
-						case "go_test":
-						default:
-							ok = true
+							if strings.EqualFold(token, "# wollemi:keep") {
+								continue
+							}
 						}
 
-						if !ok {
-							names := make([]string, 0, len(rules))
+						var external bool
+						var includePattern string
+						var excludePattern string
 
-							for _, rule := range rules {
-								names = append(names, rule.Name())
+						goFiles = goFiles[:0]
+						imports = imports[:0]
+
+						ruleName := rule.Name()
+
+						_, isGeneratedRule := isGeneratedRule[ruleName]
+
+						if isGeneratedRule {
+							switch kind {
+							case "go_binary", "go_library":
+								goFiles = gopkg.GoFiles
+								imports = gopkg.Imports
+								includePattern = "*.go"
+								excludePattern = "*_test.go"
+							case "go_test":
+								includePattern = "*_test.go"
+								goFiles = gopkg.XTestGoFiles
+								imports = gopkg.XTestImports
+								external = len(goFiles) > 0
+
+								if !external {
+									includePattern = "*.go"
+									goFiles = append(gopkg.GoFiles, gopkg.TestGoFiles...)
+									imports = append(gopkg.Imports, gopkg.TestImports...)
+								}
 							}
+						} else {
+							goFiles = goFilesFromExpr(rule.Attr("srcs"), dir)
+						}
 
-							log.WithField("kind", kind).
-								WithField("names", names).
-								WithField("go_rewrite", false).
-								Warn("multiples of rule kind not supported")
+						if len(goFiles) == 0 {
+							log.WithField("build_rule", ruleName).
+								WithField("reason", "no source files").
+								Warn("removed")
+
+							dir.Build.DelRule(ruleName)
 
 							continue
 						}
-					}
 
-					rule := rules[0]
+						log := log.WithField("build_rule", ruleName)
 
-					for _, comment := range rule.Comment().Before {
-						token := strings.TrimSpace(comment.Token)
+						if isGeneratedRule {
+							include = include[:0]
+							exclude = exclude[:0]
+							targets = targets[:0]
 
-						if strings.EqualFold(token, "# wollemi:keep") {
-							continue Rules
-						}
-					}
+							if !external {
+								exclude = append(exclude, gopkg.IgnoredGoFiles...)
+							}
 
-					var external bool
-					var includePattern string
-					var excludePattern string
+							if includePattern != "" {
+								include = append(include, includePattern)
+							}
 
-					goFiles = goFiles[:0]
-					imports = imports[:0]
+							if excludePattern != "" {
+								exclude = append(exclude, excludePattern)
+							}
 
-					switch kind {
-					case "go_binary", "go_library":
-						goFiles = gopkg.GoFiles
-						imports = gopkg.Imports
-						includePattern = "*.go"
-						excludePattern = "*_test.go"
-					case "go_test":
-						includePattern = "*_test.go"
-						goFiles = gopkg.XTestGoFiles
-						imports = gopkg.XTestImports
-						external = len(goFiles) > 0
+							var srcLen int
 
-						if !external {
-							includePattern = "*.go"
-							goFiles = append(gopkg.GoFiles, gopkg.TestGoFiles...)
-							imports = append(gopkg.Imports, gopkg.TestImports...)
-						}
-					}
+							for _, filename := range goFiles {
+								relpath := filepath.Join(path, filename)
 
-					ruleName := rule.Name()
+								log := log.WithField("file", filename)
 
-					if rule.AttrString("name") == "" {
-						rule.SetAttr("name", please.String(ruleName))
-					}
+								target, _ := getTarget(config, relpath, true)
+								if target == "" {
+									info := dir.Files[filename]
+									if info.Mode()&os.ModeSymlink == 0 { // is not symlink
+										srcLen++
 
-					var remove bool
+										if includePattern != "" {
+											ok, err := filepath.Match(includePattern, filename)
+											if err != nil {
+												log.WithError(err).
+													WithField("pattern", includePattern).
+													Warn("could not match include pattern")
 
-					switch kind {
-					case "go_binary", "go_library":
-						remove = len(goFiles) == 0
-					case "go_test":
-						remove = len(gopkg.TestGoFiles)+len(gopkg.XTestGoFiles) == 0
-					}
+												continue
+											}
 
-					if remove {
-						log.WithField("build_rule", ruleName).
-							WithField("reason", "no source files").
-							Warn("removed")
+											if ok {
+												continue
+											}
 
-						dir.Build.DelRule(ruleName)
+											if excludePattern != "" {
+												ok, err := filepath.Match(excludePattern, filename)
+												if err != nil {
+													log.WithError(err).
+														WithField("pattern", excludePattern).
+														Warn("could not match exclude pattern")
 
-						continue
-					}
+													continue
+												}
 
-					log := log.WithField("build_rule", ruleName)
-
-					include = include[:0]
-					exclude = exclude[:0]
-					targets = targets[:0]
-
-					if !external {
-						exclude = append(exclude, gopkg.IgnoredGoFiles...)
-					}
-
-					if includePattern != "" {
-						include = append(include, includePattern)
-					}
-
-					if excludePattern != "" {
-						exclude = append(exclude, excludePattern)
-					}
-
-					var srcLen int
-
-					for _, filename := range goFiles {
-						relpath := filepath.Join(path, filename)
-
-						log := log.WithField("file", filename)
-
-						target, _ := getTarget(config, relpath, true)
-						if target == "" {
-							info := dir.Files[filename]
-							if info.Mode()&os.ModeSymlink == 0 { // is not symlink
-								srcLen++
-
-								if includePattern != "" {
-									ok, err := filepath.Match(includePattern, filename)
-									if err != nil {
-										log.WithError(err).
-											WithField("pattern", includePattern).
-											Warn("could not match include pattern")
-
-										continue
-									}
-
-									if ok {
-										continue
-									}
-
-									if excludePattern != "" {
-										ok, err := filepath.Match(excludePattern, filename)
-										if err != nil {
-											log.WithError(err).
-												WithField("pattern", excludePattern).
-												Warn("could not match exclude pattern")
-
-											continue
+												if ok {
+													continue
+												}
+											}
 										}
 
-										if ok {
-											continue
+										include = append(include, filename)
+									}
+								} else {
+									targetPath, name := split(target)
+									if targetPath == path {
+										target = ":" + name
+									}
+
+									exclude = append(exclude, filename)
+									targets = append(targets, target)
+								}
+							}
+
+							if srcLen == 0 {
+								continue
+							}
+
+							rule.SetAttr("srcs", please.Glob(include, exclude, targets...))
+						}
+
+						deps = deps[:0]
+						unresolved = unresolved[:0]
+						dedup := make(map[string]struct{}, len(imports))
+
+						if !isGeneratedRule {
+							if kind == "go_test" {
+								// Allow internal go_test rule to depend on go_library rule even
+								// though the go code does not. In the case of please this will
+								// just make the pre-compiled go library code available in the
+								// test.
+								for _, dep := range rule.AttrStrings("deps") {
+									path, name := split(dep)
+									if path == "" || path == dir.Path {
+										rule := dir.Build.GetRule(name)
+										if rule != nil && rule.Kind() == "go_library" {
+											dep = ":" + name
+
+											if _, ok := dedup[dep]; !ok {
+												dedup[dep] = struct{}{}
+												deps = append(deps, dep)
+											}
 										}
 									}
 								}
-
-								include = append(include, filename)
 							}
-						} else {
+
+							// Since this is a pre-existing rule we will attempt to determine
+							// the go imports using the srcs defined by the rule.
+							for _, name := range goFiles {
+								fileImports, ok := gopkg.GoFileImports[name]
+								if !ok {
+									// Attempt to recover by finding the missing go file imports
+									// in plz-out/gen since the file could have been generated by
+									// another rule.
+									path := filepath.Join("plz-out/gen", dir.Path)
+									gopkg, err := this.golang.ImportDir(path, []string{name})
+									if err != nil {
+										log.WithError(err).
+											WithField("file", name).
+											Error("could not parse required src file")
+
+										continue Rules
+									}
+
+									fileImports, _ = gopkg.GoFileImports[name]
+								}
+
+								for _, path := range fileImports {
+									var found bool
+
+									for _, have := range imports {
+										if path == have {
+											found = true
+											break
+										}
+									}
+
+									if !found {
+										imports = append(imports, path)
+									}
+								}
+							}
+						}
+
+						for _, godep := range imports {
+							if isGoroot[godep] {
+								continue
+							}
+
+							target, _ := getTarget(config, godep, false)
+							if target == "" {
+								log.WithField("go_import", godep).
+									Error("could not resolve go import")
+
+								unresolved = append(unresolved, godep)
+
+								continue
+							}
+
 							targetPath, name := split(target)
 							if targetPath == path {
 								target = ":" + name
 							}
 
-							exclude = append(exclude, filename)
-							targets = append(targets, target)
+							if _, ok := dedup[target]; !ok {
+								dedup[target] = struct{}{}
+								deps = append(deps, target)
+							}
 						}
-					}
 
-					if srcLen == 0 {
-						continue
-					}
-
-					deps = deps[:0]
-					unresolved = unresolved[:0]
-					srcs := please.Glob(include, exclude, targets...)
-					dedup := make(map[string]struct{}, len(imports))
-
-					for _, godep := range imports {
-						if isGoroot[godep] {
+						// skip rewrite because we have unresolved dependencies
+						if len(unresolved) > 0 {
 							continue
 						}
 
-						target, _ := getTarget(config, godep, false)
-						if target == "" {
-							log.WithField("go_import", godep).
-								Error("could not resolve go import")
+						if isGeneratedRule {
+							switch rule.Kind() {
+							case "go_test":
+								if external {
+									rule.SetAttr("external", &please.Ident{Name: "True"})
+								} else {
+									rule.DelAttr("external")
+								}
+							case "go_binary", "go_library":
+								visibility := config.DefaultVisibility
 
-							unresolved = append(unresolved, godep)
+								if visibility == "" {
+									visibility = "PUBLIC"
 
-							continue
-						}
-
-						targetPath, name := split(target)
-						if targetPath == path {
-							target = ":" + name
-						}
-
-						if _, ok := dedup[target]; !ok {
-							dedup[target] = struct{}{}
-							deps = append(deps, target)
-						}
-					}
-
-					// skip rewrite because we have unresolved dependencies
-					if len(unresolved) > 0 {
-						continue
-					}
-
-					rule.SetAttr("srcs", srcs)
-
-					switch rule.Kind() {
-					case "go_test":
-						if external {
-							rule.SetAttr("external", &please.Ident{Name: "True"})
-						} else {
-							rule.DelAttr("external")
-						}
-					case "go_binary", "go_library":
-						if _, ok := isGeneratedRule[ruleName]; ok {
-							visibility := config.DefaultVisibility
-
-							if visibility == "" {
-								visibility = "PUBLIC"
-
-								for _, root := range paths {
-									dir, name := split(root)
-									if name == "..." && dir != "" {
-										if path == dir || strings.HasPrefix(path, dir+"/") {
-											visibility = fmt.Sprintf("//%s/...", dir)
-											break
+									for _, root := range paths {
+										dir, name := split(root)
+										if name == "..." && dir != "" {
+											if path == dir || strings.HasPrefix(path, dir+"/") {
+												visibility = fmt.Sprintf("//%s/...", dir)
+												break
+											}
 										}
 									}
 								}
+
+								rule.SetAttr("visibility", please.Strings(visibility))
+							}
+						}
+
+						sort.Slice(deps, func(i, j int) bool {
+							iPath, iName := split(deps[i])
+							jPath, jName := split(deps[j])
+
+							if iPath == jPath {
+								return iName < jName
 							}
 
-							rule.SetAttr("visibility", please.Strings(visibility))
+							return iPath < jPath
+						})
+
+						rule.SetAttr("deps", please.Strings(deps...))
+
+						if isGeneratedRule {
+							dir.Build.SetRule(rule)
 						}
-					}
-
-					sort.Slice(deps, func(i, j int) bool {
-						iPath, iName := split(deps[i])
-						jPath, jName := split(deps[j])
-
-						if iPath == jPath {
-							return iName < jName
-						}
-
-						return iPath < jPath
-					})
-
-					rule.SetAttr("deps", please.Strings(deps...))
-
-					if _, ok := isGeneratedRule[ruleName]; ok {
-						dir.Build.SetRule(rule)
 					}
 				}
 			}
@@ -592,4 +617,124 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 	get.Close()
 
 	return nil
+}
+
+func goFilesFromExpr(expr please.Expr, dir *Directory) []string {
+	var goFiles []string
+
+	switch expr := expr.(type) {
+	case *please.BinaryExpr:
+		if expr.Op == "+" {
+			goFiles = append(goFiles, goFilesFromExpr(expr.X, dir)...)
+			goFiles = append(goFiles, goFilesFromExpr(expr.Y, dir)...)
+		}
+	case *please.ListExpr:
+		for _, entry := range expr.List {
+			switch s := entry.(type) {
+			case *please.StringExpr:
+				if strings.HasPrefix(s.Value, ":") || strings.HasPrefix(s.Value, "//") {
+					path, name := split(s.Value)
+
+					if path == "" || path == dir.Path {
+						rule := dir.Build.GetRule(name)
+						if rule != nil {
+							goFiles = append(goFiles, goFilesFromExpr(rule.Unwrap(), dir)...)
+						}
+					}
+				} else {
+					goFiles = append(goFiles, s.Value)
+				}
+			}
+		}
+	case *please.CallExpr:
+		var kind string
+
+		switch x := expr.X.(type) {
+		case *please.Ident:
+			kind = x.Name
+		}
+
+		switch kind {
+		case "genrule":
+			outs := please.Attr(expr, "outs")
+			goFiles = append(goFiles, goFilesFromExpr(outs, dir)...)
+		case "go_copy":
+			if name := please.AttrString(expr, "name"); name != "" {
+				goFiles = append(goFiles, name+".cp.go")
+			}
+		case "glob":
+			var include []string
+			var exclude []string
+
+			argLen := len(expr.List)
+
+			if argLen >= 1 {
+				switch expr := expr.List[0].(type) {
+				case *please.ListExpr:
+					for _, entry := range expr.List {
+						switch s := entry.(type) {
+						case *please.StringExpr:
+							include = append(include, s.Value)
+						}
+					}
+				}
+			}
+
+			if argLen > 1 {
+				switch assign := expr.List[1].(type) {
+				case *please.AssignExpr:
+					switch lhs := assign.LHS.(type) {
+					case *please.Ident:
+						if lhs.Name == "exclude" {
+							switch rhs := assign.RHS.(type) {
+							case *please.ListExpr:
+								for _, entry := range rhs.List {
+									switch s := entry.(type) {
+									case *please.StringExpr:
+										exclude = append(exclude, s.Value)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			for _, xs := range [][]string{
+				dir.Gopkg.GoFiles,
+				dir.Gopkg.TestGoFiles,
+				dir.Gopkg.XTestGoFiles,
+			} {
+				for _, x := range xs {
+					if isMatched(x, include) && !isMatched(x, exclude) {
+						goFiles = append(goFiles, x)
+					}
+				}
+			}
+		case "filegroup":
+			srcs := please.Attr(expr, "srcs")
+			goFiles = append(goFiles, goFilesFromExpr(srcs, dir)...)
+		}
+	}
+
+	return goFiles
+}
+
+func isMatched(s string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if s == pattern {
+			return true
+		}
+
+		ok, err := filepath.Match(pattern, s)
+		if err != nil {
+			panic(err)
+		}
+
+		if ok {
+			return true
+		}
+	}
+
+	return false
 }

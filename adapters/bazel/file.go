@@ -24,6 +24,27 @@ type File struct {
 	Data []byte
 }
 
+func (this *File) IsEmpty() bool {
+	for _, stmt := range this.Stmt {
+		switch expr := stmt.(type) {
+		case *build.ForStmt:
+			return false
+		case *build.IfStmt:
+			return false
+		case *build.CallExpr:
+			rule := NewRule(expr)
+			switch rule.Kind() {
+			case "package":
+			case "subinclude":
+			default:
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func (this *File) Unwrap() *build.File {
 	return this.File
 }

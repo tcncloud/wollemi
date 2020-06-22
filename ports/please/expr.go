@@ -108,3 +108,28 @@ func Assign(name, op string, val Expr) *AssignExpr {
 		RHS: val,
 	}
 }
+
+func Attr(expr *CallExpr, key string) Expr {
+	for _, entry := range expr.List {
+		switch assign := entry.(type) {
+		case *AssignExpr:
+			switch lhs := assign.LHS.(type) {
+			case *Ident:
+				if lhs.Name == key {
+					return assign.RHS
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func AttrString(expr *CallExpr, key string) string {
+	switch attr := Attr(expr, key).(type) {
+	case *StringExpr:
+		return attr.Value
+	}
+
+	return ""
+}

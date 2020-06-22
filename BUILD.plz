@@ -1,6 +1,6 @@
 go_binary(
     name = "wollemi",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["main.go"],
     visibility = ["PUBLIC"],
     deps = [
         "//adapters/bazel",

@@ -109,6 +109,66 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/..."}))
 	})
+
+	t.It("can format existing go_library rule", func(t *T) {
+		data := t.GoFormatTestData()
+
+		want := data.Parse["app/server/BUILD.plz"]
+		require.NotNil(t, want)
+
+		have := (please.Copier{}).BuildFile(want)
+
+		data.Write["app/server/BUILD.plz"] = want
+
+		rule := have.GetRule("server")
+		require.NotNil(t, rule)
+
+		rule.SetAttr("deps", please.NewListExpr())
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, gopkg)
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
+	})
+
+	t.It("allows internal go_test to depend on go_library without go import", func(t *T) {
+		data := t.GoFormatTestData()
+
+		have := data.Parse["app/server/BUILD.plz"]
+		require.NotNil(t, have)
+
+		// -------------------------------------------------------------------------
+
+		want := (please.Copier{}).BuildFile(have)
+
+		rule := want.GetRule("test")
+		require.NotNil(t, rule)
+
+		deps := []interface{}{":server"}
+		for _, dep := range rule.AttrStrings("deps") {
+			deps = append(deps, dep)
+		}
+
+		rule.SetAttr("deps", please.NewListExpr(deps...))
+		rule.DelAttr("external")
+
+		data.Write["app/server/BUILD.plz"] = want
+
+		// -------------------------------------------------------------------------
+
+		rule = have.GetRule("test")
+		require.NotNil(t, rule)
+
+		rule.DelAttr("external")
+		rule.SetAttr("deps", please.NewListExpr(":server"))
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, gopkg)
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
+	})
 }
 
 func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
@@ -323,6 +383,17 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"google.golang.org/grpc/codes",
 					"google.golang.org/grpc/status",
 				},
+				GoFileImports: map[string][]string{
+					"service.pb.go": []string{
+						"github.com/golang/protobuf/proto",
+						"google.golang.org/grpc",
+						"google.golang.org/grpc/codes",
+						"google.golang.org/grpc/status",
+					},
+					"entities.pb.go": []string{
+						"github.com/golang/protobuf/proto",
+					},
+				},
 			},
 			"app/protos/mock": &golang.Package{
 				Name: "mock_protos",
@@ -334,6 +405,14 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"github.com/wollemi_test/app/protos",
 					"google.golang.org/grpc",
 					"google.golang.org/grpc/metadata",
+				},
+				GoFileImports: map[string][]string{
+					"mock.mg.go": []string{
+						"github.com/golang/mock/gomock",
+						"github.com/wollemi_test/app/protos",
+						"google.golang.org/grpc",
+						"google.golang.org/grpc/metadata",
+					},
 				},
 			},
 			"app/server": &golang.Package{
@@ -362,6 +441,26 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"github.com/wollemi_test/app/protos/mock",
 					"testing",
 				},
+				GoFileImports: map[string][]string{
+					"server_test.go": []string{
+						"github.com/golang/mock/gomock",
+						"github.com/golang/protobuf/proto/ptypes/wrappers",
+						"github.com/stretchr/testify/assert",
+						"github.com/stretchr/testify/require",
+						"github.com/wollemi_test/app/protos/mock",
+						"testing",
+					},
+					"server.go": []string{
+						"database/sql",
+						"encoding/json",
+						"github.com/golang/protobuf/proto/ptypes/wrappers",
+						"github.com/wollemi_test/app/protos",
+						"google.golang.org/grpc",
+						"google.golang.org/grpc/credentials",
+						"strconv",
+						"strings",
+					},
+				},
 			},
 			"app": &golang.Package{
 				Name: "main",
@@ -381,6 +480,19 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 					"github.com/stretchr/testify/assert",
 					"github.com/stretchr/testify/require",
 					"testing",
+				},
+				GoFileImports: map[string][]string{
+					"main_test.go": []string{
+						"github.com/golang/mock/gomock",
+						"github.com/stretchr/testify/assert",
+						"github.com/stretchr/testify/require",
+						"testing",
+					},
+					"main.go": []string{
+						"fmt",
+						"github.com/spf13/cobra",
+						"github.com/wollemi_test/app/server",
+					},
 				},
 			},
 		},

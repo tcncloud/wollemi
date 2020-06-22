@@ -36,7 +36,7 @@ Wollemi can also be installed by running the following install script from the
 root of the repository which builds the binary using please.
 
 ```
-./tools/wollemi/install.sh
+./install.sh
 ```
 
 ### Install Bash Completion

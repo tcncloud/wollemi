@@ -14,4 +14,5 @@ type Rule interface {
 	SetAttr(key string, val Expr)
 	SetKind(kind string)
 	Comment() Comments
+	Unwrap() *CallExpr
 }

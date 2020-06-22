@@ -76,7 +76,10 @@ func (this *Builder) Write(file please.File) error {
 							switch x := rhs.X.(type) {
 							case *build.Ident:
 								if x.Name == "glob" {
-									rhs.ForceCompact = true
+									start, end := rhs.Span()
+									if start.Line == end.Line {
+										rhs.ForceCompact = true
+									}
 								}
 							}
 						}
@@ -85,17 +88,9 @@ func (this *Builder) Write(file please.File) error {
 			}
 		}
 
-		var numRules int
-
-		file.GetRules(func(rule please.Rule) {
-			if rule.Name() != "" {
-				numRules++
-			}
-		})
-
 		log := this.log.WithField("path", filepath.Dir(file.Path))
 
-		if numRules == 0 {
+		if file.IsEmpty() {
 			err := this.filesystem.Remove(file.Path)
 			if err != nil {
 				if !os.IsNotExist(err) {
