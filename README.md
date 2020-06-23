@@ -1,3 +1,5 @@
+[![asciicast](https://asciinema.org/a/342181.svg)](https://asciinema.org/a/342181)
+
 # Wollemi
 Please build file generator and formatter capable of generating go_binary,
 go_library and go_test build rules from existing go code.
@@ -82,7 +84,7 @@ addition to your vimrc. With this addition saving a go file will cause wollemi
 gofmt to be automatically run on the package which contains the file.
 
 ```
-autocmd BufWritePost *.go silent exec '!wollemi gofmt' shellescape(expand('%:h'), 1)
+autocmd BufWritePost *.go silent exec '!wollemi --log fatal gofmt' shellescape(expand('%:h'), 1)
 ```
 
 ---
