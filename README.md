@@ -1,8 +1,11 @@
-[![asciicast](https://asciinema.org/a/342181.svg)](https://asciinema.org/a/342181)
-
 # Wollemi
 Please build file generator and formatter capable of generating go_binary,
 go_library and go_test build rules from existing go code.
+
+## Demo
+See [Vim](#vim) setup.
+
+[![asciicast](https://asciinema.org/a/342181.svg)](https://asciinema.org/a/342181)
 
 ## Requirements
 - [please](https://please.build)
