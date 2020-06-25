@@ -35,6 +35,10 @@ func (this *Importer) GOPATH() string {
 	return build.Default.GOPATH
 }
 
+func (this *Importer) GOROOT() string {
+	return build.Default.GOROOT
+}
+
 func (this *Importer) ModulePath(buf []byte) string {
 	return modfile.ModulePath(buf)
 }
@@ -118,14 +122,14 @@ func (this *Importer) ImportDir(dir string, names []string) (*Package, error) {
 	sort.Strings(out.TestGoFiles)
 	sort.Strings(out.XTestGoFiles)
 
-	gorootsrc := filepath.Join(build.Default.GOROOT, "src")
+	gorootsrc := filepath.Join(this.GOROOT(), "src")
 	out.Goroot = strings.HasPrefix(dir, gorootsrc+"/")
 
 	return out, nil
 }
 
 func (this *Importer) IsGoroot(path string) bool {
-	gorootsrc := filepath.Join(build.Default.GOROOT, "src")
+	gorootsrc := filepath.Join(this.GOROOT(), "src")
 
 	if strings.HasPrefix(path, "/") {
 		return strings.HasPrefix(path, gorootsrc+"/")

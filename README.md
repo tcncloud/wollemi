@@ -11,34 +11,12 @@ See [Vim](#vim) setup.
 - [please](https://please.build)
 
 ### Install
-In your please project create a file (`tools/wollemi/BUILD.plz`) with following content:
-
-```
-build_rule(
-    name = "wollemi",
-    binary = True,
-    srcs = [remote_file(
-        name = "wollemi",
-        _tag = "download",
-        url = f"https://github.com/tcncloud/wollemi/releases/download/v0.0.3/wollemi-v0.0.3-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
-    )],
-    cmd = " && ".join([
-        "tar xf $SRCS",
-    ]),
-    outs = ["wollemi"],
-    visibility = ["PUBLIC"],
-)
-```
-Then you can run it by invoking please: `plz run //tools/wollemi`
-
-Or, just install it in your `GOPATH`:
-
 ```
 GO111MODULE=on go get github.com/tcncloud/wollemi
 ```
 
 Wollemi can also be installed by running the following install script from the
-root of the repository which builds the binary using please.
+root of the repository which will build the binary using please.
 
 ```
 ./install.sh
@@ -82,9 +60,10 @@ compdef _wollemi wollemi
 After reloading your shell, wollemi autocompletion should be working.
 
 ### Vim
-Wollemi can be setup to auto gofmt whenever writing go files with the following
-addition to your vimrc. With this addition saving a go file will cause wollemi
-gofmt to be automatically run on the package which contains the file.
+Vim can be setup to automatically run wollemi gofmt on file changes by adding
+the following line to your vimrc. With this addition, whenever a go file is
+written, wollemi gofmt will be automatically run on the package containing the
+modified file.
 
 ```
 autocmd BufWritePost *.go silent exec '!wollemi --log fatal gofmt' shellescape(expand('%:h'), 1)

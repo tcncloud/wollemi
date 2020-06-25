@@ -96,8 +96,9 @@ func (app *Application) Wollemi() (ctl.Wollemi, error) {
 
 	log.WithField("working_directory", wd).
 		WithField("project_root", root).
-		WithField("go_source_path", gosrc).
 		WithField("go_package", gopkg).
+		WithField("go_path", golang.GOPATH()).
+		WithField("go_root", golang.GOROOT()).
 		Debug("wollemi initialized")
 
 	return wollemi.New(log, filesystem, golang, bazel, root, wd, gosrc, gopkg), nil
