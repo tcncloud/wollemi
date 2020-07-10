@@ -28,7 +28,7 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 			# project/.wollemi.json
 			{
 			  "known_dependency": {
-			    "go.opencensus.io": "//third_party/go/go.opencensus.io:all_libs",
+			    "go.opencensus.io": "//third_party/go/go.opencensus.io:all_libs"
 			  }
 			}
 
