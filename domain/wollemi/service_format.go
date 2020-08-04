@@ -534,10 +534,12 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 							target, _ := getTarget(config, godep, false)
 							if target == "" {
-								log.WithField("go_import", godep).
-									Error("could not resolve go import")
+								if !config.AllowUnresolvedDependency.IsTrue() {
+									log.WithField("go_import", godep).
+										Error("could not resolve go import")
 
-								unresolved = append(unresolved, godep)
+									unresolved = append(unresolved, godep)
+								}
 
 								continue
 							}

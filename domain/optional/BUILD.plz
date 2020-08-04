@@ -1,8 +1,8 @@
 go_library(
-    name = "filesystem",
+    name = "optional",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
-    deps = ["//domain/optional"],
+    deps = [],
 )
 
 go_test(
@@ -10,8 +10,7 @@ go_test(
     srcs = glob(["*_test.go"]),
     external = True,
     deps = [
-        ":filesystem",
-        "//domain/optional",
+        ":optional",
         "//third_party/go/github.com/stretchr:testify",
     ],
 )

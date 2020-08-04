@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tcncloud/wollemi/domain/optional"
 	"github.com/tcncloud/wollemi/ports/filesystem"
 	"github.com/tcncloud/wollemi/ports/golang"
 	"github.com/tcncloud/wollemi/testdata/expect"
@@ -162,6 +164,61 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 		rule.DelAttr("external")
 		rule.SetAttr("deps", please.NewListExpr(":server"))
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, gopkg)
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
+	})
+
+	t.It("can be configured to allow unresolved dependencies", func(t *T) {
+		data := t.GoFormatTestData()
+
+		for path, _ := range data.Stat {
+			if strings.HasPrefix(path, "third_party/go/") {
+				delete(data.Stat, path)
+				delete(data.Lstat, path)
+			}
+		}
+
+		for path, _ := range data.Parse {
+			if strings.HasPrefix(path, "third_party/go/") {
+				delete(data.Parse, path)
+			}
+		}
+
+		data.Walk = make([]string, 0, len(data.Walk))
+		for path, _ := range data.Lstat {
+			data.Walk = append(data.Walk, path)
+		}
+
+		data.Config["app/server"] = &filesystem.Config{
+			DefaultVisibility:         "//app/...",
+			AllowUnresolvedDependency: optional.BoolValue(true),
+		}
+
+		file := data.Parse["app/server/BUILD.plz"]
+		require.NotNil(t, file)
+
+		data.Stat[file.Path] = nil
+		data.Lstat[file.Path] = nil
+		data.Parse[file.Path] = nil
+		data.Write[file.Path] = file
+
+		for _, name := range []string{"server", "test"} {
+			rule := file.GetRule(name)
+			have := rule.AttrStrings("deps")
+			want := make([]interface{}, 0, len(have))
+
+			for _, dep := range have {
+				if !strings.HasPrefix(dep, "//third_party/go/") {
+					want = append(want, dep)
+				}
+			}
+
+			rule.SetAttr("deps", please.NewListExpr(want...))
+		}
 
 		t.MockGoFormat(data)
 

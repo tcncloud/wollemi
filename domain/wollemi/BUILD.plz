@@ -18,6 +18,7 @@ go_test(
     visibility = ["//..."],
     deps = [
         ":wollemi",
+        "//domain/optional",
         "//ports/filesystem",
         "//ports/golang",
         "//ports/golang:mock",
