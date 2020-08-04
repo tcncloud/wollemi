@@ -45,10 +45,10 @@ func (this *Config) Merge(that *Config) *Config {
 		for key, value := range this.KnownDependency {
 			merge.KnownDependency[key] = value
 		}
-	}
 
-	for key, value := range that.KnownDependency {
-		merge.KnownDependency[key] = value
+		for key, value := range that.KnownDependency {
+			merge.KnownDependency[key] = value
+		}
 	}
 
 	if v := that.AllowUnresolvedDependency; v != nil {
