@@ -6,7 +6,7 @@ build:
     image: ubuntu:20.04 
     script:
         - apt update && apt install -y build-essential xz-utils git wget curl 
-        - ./pleasew cover -p -v 2 ...
+        - ./pleasew test -p -v 2 ...
         - ./pleasew build -p -v 2 //:wollemi
         - ./pleasew build -a darwin_amd64 -p -v 2 //:wollemi
     artifacts:
