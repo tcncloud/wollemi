@@ -226,6 +226,97 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
 	})
+
+	t.It("can resolve dependencies by import_path", func(t *T) {
+		data := t.GoFormatTestData()
+
+		delete(data.Stat, "third_party/go/github.com/spf13/BUILD.plz")
+		delete(data.Lstat, "third_party/go/github.com/spf13/BUILD.plz")
+		delete(data.Parse, "third_party/go/github.com/spf13/BUILD.plz")
+
+		data.Stat["third_party/go/github.com/spf13/cobra/BUILD.plz"] = &FileInfo{
+			FileName: "BUILD.plz",
+			FileMode: os.FileMode(420),
+		}
+		data.Lstat["third_party/go/github.com/spf13/cobra/BUILD.plz"] = data.Stat["third_party/go/github.com/spf13/cobra/BUILD.plz"]
+
+		data.Stat["third_party/go/github.com/spf13/pflag/BUILD.plz"] = &FileInfo{
+			FileName: "BUILD.plz",
+			FileMode: os.FileMode(420),
+		}
+		data.Lstat["third_party/go/github.com/spf13/pflag/BUILD.plz"] = data.Stat["third_party/go/github.com/spf13/pflag/BUILD.plz"]
+
+		data.Walk = make([]string, 0, len(data.Walk))
+		for path, _ := range data.Lstat {
+			data.Walk = append(data.Walk, path)
+		}
+
+		sort.Strings(data.Walk)
+
+		data.Parse["third_party/go/github.com/spf13/cobra/BUILD.plz"] = &please.BuildFile{
+			Path: "third_party/go/github.com/spf13/cobra/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_library", []please.Expr{
+					please.NewAssignExpr("=", "name", "cobra"),
+					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+					please.NewAssignExpr("=", "import_path", "github.com/spf13/cobra"),
+					please.NewAssignExpr("=", "deps", []string{"//third_party/go/github.com/spf13/pflag"}),
+					please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+				}),
+			},
+		}
+
+		data.Parse["third_party/go/github.com/spf13/pflag/BUILD.plz"] = &please.BuildFile{
+			Path: "third_party/go/github.com/spf13/pflag/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_library", []please.Expr{
+					please.NewAssignExpr("=", "name", "pflag"),
+					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+					please.NewAssignExpr("=", "import_path", "github.com/spf13/pflag"),
+					please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+				}),
+			},
+		}
+
+		data.Parse["app/BUILD.plz"] = &please.BuildFile{
+			Path: "app/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_binary", []please.Expr{
+					please.NewAssignExpr("=", "name", "app"),
+					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+					please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+					please.NewAssignExpr("=", "deps", []string{
+						"//app/server",
+						"//third_party/go/github.com/spf13/cobra",
+					}),
+				}),
+				please.NewCallExpr("go_test", []please.Expr{
+					please.NewAssignExpr("=", "name", "test"),
+					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"})),
+					please.NewAssignExpr("=", "deps", []string{
+						"//app/server",
+						"//third_party/go/github.com/golang:mock",
+						"//third_party/go/github.com/spf13/cobra",
+						"//third_party/go/github.com/stretchr:testify",
+					}),
+				}),
+			},
+		}
+
+		file := data.Parse["app/BUILD.plz"]
+		require.NotNil(t, file)
+
+		data.Stat[file.Path] = nil
+		data.Lstat[file.Path] = nil
+		data.Parse[file.Path] = nil
+		data.Write[file.Path] = file
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, gopkg)
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app"}))
+	})
 }
 
 func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
