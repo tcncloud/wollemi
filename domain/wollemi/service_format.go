@@ -171,10 +171,15 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 						target += ":" + name
 					}
 
-					internal[path] = "//" + target
+					importPath := rule.AttrString("import_path")
+					if importPath != "" {
+						external[importPath] = append(external[path], "//"+target)
+					} else {
+						internal[path] = "//" + target
 
-					if rule.Kind() == "go_copy" {
-						genfiles[path+".cp.go"] = target
+						if rule.Kind() == "go_copy" {
+							genfiles[path+".cp.go"] = target
+						}
 					}
 				case "go_get", "go_get_with_sources":
 					get := strings.TrimSuffix(rule.AttrString("get"), "/...")

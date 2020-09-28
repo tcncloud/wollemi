@@ -226,6 +226,67 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
 	})
+
+	t.It("can resolve dependencies by import_path", func(t *T) {
+		data := t.GoFormatTestData()
+
+		cobra := "third_party/go/github.com/spf13/cobra/BUILD.plz"
+		data.Stat[cobra] = &FileInfo{
+			FileName: "BUILD.plz",
+			FileMode: os.FileMode(420),
+		}
+		data.Lstat[cobra] = data.Stat[cobra]
+
+		data.Walk = make([]string, 0, len(data.Walk))
+		for path, _ := range data.Lstat {
+			data.Walk = append(data.Walk, path)
+		}
+
+		sort.Strings(data.Walk)
+
+		data.Parse[cobra] = &please.BuildFile{
+			Path: cobra,
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_library", []please.Expr{
+					please.NewAssignExpr("=", "name", "cobra"),
+					please.NewAssignExpr("=", "import_path", "github.com/spf13/cobra"),
+				}),
+			},
+		}
+
+		file := data.Parse["app/BUILD.plz"]
+		require.NotNil(t, file)
+
+		data.Stat[file.Path] = nil
+		data.Lstat[file.Path] = nil
+		data.Parse[file.Path] = nil
+		data.Write[file.Path] = file
+
+		app := file.GetRule("app")
+		require.NotNil(t, app)
+
+		test := file.GetRule("test")
+		require.NotNil(t, test)
+
+		app.SetAttr("visibility", please.NewListExpr("PUBLIC"))
+		app.SetAttr("deps", please.NewListExpr(
+			"//app/server",
+			"//third_party/go/github.com/spf13/cobra",
+		))
+
+		test.SetAttr("deps", please.NewListExpr(
+			"//app/server",
+			"//third_party/go/github.com/golang:mock",
+			"//third_party/go/github.com/spf13/cobra",
+			"//third_party/go/github.com/stretchr:testify",
+		))
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, gopkg)
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app"}))
+	})
 }
 
 func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
