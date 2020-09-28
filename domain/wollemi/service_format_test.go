@@ -230,21 +230,12 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	t.It("can resolve dependencies by import_path", func(t *T) {
 		data := t.GoFormatTestData()
 
-		delete(data.Stat, "third_party/go/github.com/spf13/BUILD.plz")
-		delete(data.Lstat, "third_party/go/github.com/spf13/BUILD.plz")
-		delete(data.Parse, "third_party/go/github.com/spf13/BUILD.plz")
-
-		data.Stat["third_party/go/github.com/spf13/cobra/BUILD.plz"] = &FileInfo{
+		cobra := "third_party/go/github.com/spf13/cobra/BUILD.plz"
+		data.Stat[cobra] = &FileInfo{
 			FileName: "BUILD.plz",
 			FileMode: os.FileMode(420),
 		}
-		data.Lstat["third_party/go/github.com/spf13/cobra/BUILD.plz"] = data.Stat["third_party/go/github.com/spf13/cobra/BUILD.plz"]
-
-		data.Stat["third_party/go/github.com/spf13/pflag/BUILD.plz"] = &FileInfo{
-			FileName: "BUILD.plz",
-			FileMode: os.FileMode(420),
-		}
-		data.Lstat["third_party/go/github.com/spf13/pflag/BUILD.plz"] = data.Stat["third_party/go/github.com/spf13/pflag/BUILD.plz"]
+		data.Lstat[cobra] = data.Stat[cobra]
 
 		data.Walk = make([]string, 0, len(data.Walk))
 		for path, _ := range data.Lstat {
@@ -253,52 +244,12 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 		sort.Strings(data.Walk)
 
-		data.Parse["third_party/go/github.com/spf13/cobra/BUILD.plz"] = &please.BuildFile{
-			Path: "third_party/go/github.com/spf13/cobra/BUILD.plz",
+		data.Parse[cobra] = &please.BuildFile{
+			Path: cobra,
 			Stmt: []please.Expr{
 				please.NewCallExpr("go_library", []please.Expr{
 					please.NewAssignExpr("=", "name", "cobra"),
-					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
 					please.NewAssignExpr("=", "import_path", "github.com/spf13/cobra"),
-					please.NewAssignExpr("=", "deps", []string{"//third_party/go/github.com/spf13/pflag"}),
-					please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
-				}),
-			},
-		}
-
-		data.Parse["third_party/go/github.com/spf13/pflag/BUILD.plz"] = &please.BuildFile{
-			Path: "third_party/go/github.com/spf13/pflag/BUILD.plz",
-			Stmt: []please.Expr{
-				please.NewCallExpr("go_library", []please.Expr{
-					please.NewAssignExpr("=", "name", "pflag"),
-					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
-					please.NewAssignExpr("=", "import_path", "github.com/spf13/pflag"),
-					please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
-				}),
-			},
-		}
-
-		data.Parse["app/BUILD.plz"] = &please.BuildFile{
-			Path: "app/BUILD.plz",
-			Stmt: []please.Expr{
-				please.NewCallExpr("go_binary", []please.Expr{
-					please.NewAssignExpr("=", "name", "app"),
-					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
-					please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
-					please.NewAssignExpr("=", "deps", []string{
-						"//app/server",
-						"//third_party/go/github.com/spf13/cobra",
-					}),
-				}),
-				please.NewCallExpr("go_test", []please.Expr{
-					please.NewAssignExpr("=", "name", "test"),
-					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"})),
-					please.NewAssignExpr("=", "deps", []string{
-						"//app/server",
-						"//third_party/go/github.com/golang:mock",
-						"//third_party/go/github.com/spf13/cobra",
-						"//third_party/go/github.com/stretchr:testify",
-					}),
 				}),
 			},
 		}
@@ -310,6 +261,25 @@ func (t *ServiceSuite) TestService_GoFormat() {
 		data.Lstat[file.Path] = nil
 		data.Parse[file.Path] = nil
 		data.Write[file.Path] = file
+
+		app := file.GetRule("app")
+		require.NotNil(t, app)
+
+		test := file.GetRule("test")
+		require.NotNil(t, test)
+
+		app.SetAttr("visibility", please.NewListExpr("PUBLIC"))
+		app.SetAttr("deps", please.NewListExpr(
+			"//app/server",
+			"//third_party/go/github.com/spf13/cobra",
+		))
+
+		test.SetAttr("deps", please.NewListExpr(
+			"//app/server",
+			"//third_party/go/github.com/golang:mock",
+			"//third_party/go/github.com/spf13/cobra",
+			"//third_party/go/github.com/stretchr:testify",
+		))
 
 		t.MockGoFormat(data)
 
