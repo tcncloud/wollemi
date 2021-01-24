@@ -1,34 +1,5 @@
-remote_file(
-    name = "golang",
-    _tag = "download",
-    url = "https://dl.google.com/go/go1.14.4." + CONFIG.HOSTOS + "-" + CONFIG.HOSTARCH + ".tar.gz",
-)
-
-build_rule(
-    name = "_golang#goroot",
-    srcs = [":_golang#download"],
-    outs = ["go"],
-    cmd = " && ".join([
-        "tar xf $SRCS",
-        # TODO make the next command optional only when CONFIG.HOSTOS != CONFIG.OS
-        'GOOS="darwin" GOARCH="amd64" GOROOT=$(pwd)/go GOPATH=$(pwd) go/bin/go install -i std',
-    ]),
-)
-
-build_rule(
-    name = "go",
-    outs = ["go"],
-    binary = True,
-    cmd = """
-    set -H
-    cat > $OUTS << EOF
-#!/bin/sh
-export GOROOT=$TOOLS_GOROOT
-export PATH=\\\\$GOROOT/bin:\\\\$PATH
-exec $TOOLS_GOROOT/bin/go "\\\\$@"
-    """,
-    tools = {
-        "goroot": [":_golang#goroot"],
-    },
+go_toolchain(
+    name = "toolchain",
+    version = "1.15.7",
     visibility = ["PUBLIC"],
 )
