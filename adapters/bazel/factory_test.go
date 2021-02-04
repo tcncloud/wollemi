@@ -60,7 +60,7 @@ func (BuildFactory) BinaryExpr(x build.Expr, op string, y build.Expr) *build.Bin
 
 func (BuildFactory) DictExpr(kvs ...*build.KeyValueExpr) *build.DictExpr {
 	out := &build.DictExpr{
-		List: make([]build.Expr, len(kvs)),
+		List: make([]*build.KeyValueExpr, len(kvs)),
 	}
 
 	for i, kv := range kvs {
