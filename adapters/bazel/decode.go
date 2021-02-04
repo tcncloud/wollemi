@@ -96,10 +96,11 @@ func (Decode) DictExpr(in *please.DictExpr) *build.DictExpr {
 	out := &build.DictExpr{}
 
 	if in.List != nil {
-		out.List = make([]build.Expr, len(in.List))
+		out.List = make([]*build.KeyValueExpr, len(in.List))
 
 		for i, expr := range in.List {
-			out.List[i] = decode.Expr(expr)
+			// TODO: rework the please type to reflect the buildtools type
+			out.List[i] = decode.Expr(expr).(*build.KeyValueExpr)
 		}
 	}
 

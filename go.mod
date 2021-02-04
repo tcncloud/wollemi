@@ -11,3 +11,5 @@ require (
 	github.com/stretchr/testify v1.2.2
 	golang.org/x/mod v0.3.0
 )
+
+replace github.com/bazelbuild/buildtools => github.com/peterebden/buildtools v0.0.0-20201001123124-f7a36c689cc9
