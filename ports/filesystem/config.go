@@ -28,7 +28,7 @@ func (this *Config) Merge(that *Config) *Config {
 		merge.DefaultVisibility = that.DefaultVisibility
 	}
 
-	if len(this.KnownDependency) > 0 {
+	if len(this.KnownDependency) > 0 || len(that.KnownDependency) > 0 {
 		size := (func() int {
 			x := len(this.KnownDependency)
 			y := len(that.KnownDependency)
