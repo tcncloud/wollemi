@@ -30,6 +30,41 @@ root of the repository which will build the binary using please.
 ./install.sh
 ```
 
+Last, but not least you can download Wollemi with Please itself.
+
+In your project create a file (eg. `tools/BUILD.plz`) with following content:
+
+```starlark
+build_rule(
+    name = "wollemi",
+    binary = True,
+    srcs = [remote_file(
+        name = "wollemi",
+        _tag = "download",
+        url = f"https://github.com/tcncloud/wollemi/releases/download/v0.1.0/wollemi-v0.1.0-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
+    )],
+    cmd = " && ".join([
+        "tar xf $SRCS",
+    ]),
+    outs = ["wollemi"],
+    visibility = ["PUBLIC"],
+)
+```
+
+**Note:** commands like `gofmt` require `GOROOT` to be set, so running Wollemi with `plz run` requires wrapper that sets `GOROOT` as an environment variable:
+
+```starlark
+build_rule(
+    name = "wollemi-wrapper",
+    outs = ["wollemi.sh"],
+    binary = True,
+    cmd = "cat > \"$OUT\" << EOF\n#!/bin/sh\nexport GOROOT=$(\"$TOOLS_GO\" env GOROOT)\n$(out_exe :wollemi) \\\\$@\nEOF\n",
+    tools = {"go": [CONFIG.GO_TOOL]},
+    visibility = ["PUBLIC"],
+    deps = [":wollemi"],
+)
+```
+
 ### Install Bash Completion
 The wollemi completion script for Bash can be generated with the command wollemi
 completion bash. Sourcing the completion script in your shell enables wollemi
