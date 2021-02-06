@@ -3,7 +3,6 @@ package bazel_test
 import (
 	"bytes"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/bazelbuild/buildtools/build"
@@ -32,16 +31,15 @@ func TestBuilder_Write(t *testing.T) {
 func (t *BuilderSuite) TestBuilder_Parse() {
 	type T = BuilderSuite
 
-	t.It("errors when could not parse", func(t *T) {
-		file, err := t.builder.Parse("BUILD.plz", unparsable)
+	t.It("no errors when target contains f-strings", func(t *T) {
+		_, err := t.builder.Parse("BUILD.plz", unparsable)
+		require.NoError(t, err)
+		// have := (file(*bazel.File)).Unwrap()
+		// want := t.Buildtools()
 
-		want := strings.Join([]string{
-			"BUILD.plz:11:85",
-			"syntax error near 'https://github.com/googleapis/google-cloud-go/archive/{revision}.tar.gz'",
-		}, ": ")
-
-		require.EqualError(t, err, want)
-		require.Nil(t, file)
+		// require.Equal(t, want, have)
+		// require.Error(t, err, want)
+		// require.Nil(t, file)
 	})
 
 	t.It("parses build file", func(t *T) {
