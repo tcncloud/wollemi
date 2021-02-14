@@ -17,7 +17,7 @@ import (
 type Package = golang.Package
 
 func init() {
-	os.Setenv("GO111MODULE", "OFF")
+	os.Setenv("GO111MODULE", "off")
 }
 
 func NewImporter() *Importer {

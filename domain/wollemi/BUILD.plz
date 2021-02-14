@@ -8,6 +8,7 @@ go_library(
         "//ports/logging",
         "//ports/please",
         "//ports/wollemi",
+        "//third_party/go/golang.org/x:mod",
     ],
 )
 

@@ -23,6 +23,7 @@ func Ctl(app ctl.Application) *cobra.Command {
 		completion     = CompletionCmd()
 		completionBash = CompletionBashCmd(root)
 		completionZsh  = CompletionZshCmd(root)
+		generate       = GenerateCmd(app)
 	)
 
 	cmds := []*cobra.Command{
@@ -50,7 +51,7 @@ func Ctl(app ctl.Application) *cobra.Command {
 	addCommands(rules, rulesUnused)
 	addCommands(symlink, symlinkGoPath, symlinkList)
 	addCommands(completion, completionBash, completionZsh)
-	addCommands(root, fmt, gofmt, symlink, rules, completion)
+	addCommands(root, fmt, gofmt, symlink, rules, completion, generate)
 
 	return root
 }

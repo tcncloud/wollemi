@@ -17,4 +17,5 @@ type Wollemi interface {
 	SymlinkList(string, bool, bool, []string, []string)
 	SymlinkGoPath(bool, []string) error
 	RulesUnused(bool, []string, []string, []string) error
+	Generate([]string) error
 }
