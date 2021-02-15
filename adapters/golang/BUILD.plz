@@ -16,4 +16,8 @@ go_test(
         ":golang",
         "//third_party/go/github.com/stretchr:testify",
     ],
+    data = [
+        'testdata/project/go.mod',
+        'testdata/cache'
+    ]
 )
