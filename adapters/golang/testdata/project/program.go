@@ -1,12 +1,11 @@
 package project
 
 import (
-	"fmt"
-
 	"github.com/bazelbuild/buildtools/build"
+	"github.com/sirupsen/logrus"
 )
 
 func FakeFunction() {
 	var x *build.File
-	fmt.Printf(" %s \n", x.Path)
+	logrus.Infof(" %s \n", x.Path)
 }
