@@ -1,4 +1,4 @@
-module github.com/tcncloud/testdata
+module github.com/tcncloud/wollemi/adapters/golang/testdata/project
 
 go 1.15
 
