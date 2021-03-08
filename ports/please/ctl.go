@@ -1,11 +1,7 @@
 package please
 
-import (
-	"bufio"
-)
-
 type Ctl interface {
-	QueryDeps(...string) (*bufio.Reader, error)
+	QueryDeps(...string) ([]string, error)
 	Graph() (*Graph, error)
 	Build(...string) error
 }

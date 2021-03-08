@@ -17,21 +17,6 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 			existing go code. It also applies all formatting modifications from the
 			wollemi fmt command.
 
-			Wollemi is currently unable to parse build files which contain python
-			string inerpolation. These build files will not be formatted because of
-			this issue. Also, when the unparseable build file contains go get rules
-			gofmt will be unable to resolve go dependencies to targets contained in
-			this build file. To get around the unresolved go dependency issue you can
-			write a .wollemi.json config file which contains a known dependency mapping
-			from the unresolvable go package to the correct build target.
-
-			# project/.wollemi.json
-			{
-			  "known_dependency": {
-			    "go.opencensus.io": "//third_party/go/go.opencensus.io:all_libs"
-			  }
-			}
-
 			Occasionally a go dependency will be able to be resolved to multiple go
 			get rules and wollemi may choose the wrong target for your needs. These
 			cases can be resolved using a config file which sets a known dependency

@@ -154,7 +154,6 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 							parsing++
 							parse <- dir
-							break
 						}
 					}
 				}
@@ -183,6 +182,13 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 					}
 				case "go_get", "go_get_with_sources":
 					get := strings.TrimSuffix(rule.AttrString("get"), "/...")
+					if get == "" {
+						if install := rule.AttrStrings("install"); len(install) > 0 {
+							sort.Strings(install)
+							get = strings.TrimSuffix(install[0], "/...")
+						}
+					}
+
 					name := rule.AttrString("name")
 
 					target := dir.Path
@@ -353,26 +359,53 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 						_, isGeneratedRule := isGeneratedRule[ruleName]
 
-						if isGeneratedRule {
-							switch kind {
-							case "go_binary", "go_library":
-								goFiles = gopkg.GoFiles
-								imports = gopkg.Imports
-								includePattern = "*.go"
-								excludePattern = "*_test.go"
-							case "go_test":
-								includePattern = "*_test.go"
-								goFiles = gopkg.XTestGoFiles
-								imports = gopkg.XTestImports
-								external = len(goFiles) > 0
+						switch kind {
+						case "go_binary", "go_library":
+							goFiles = gopkg.GoFiles
+							imports = gopkg.Imports
+							includePattern = "*.go"
+							excludePattern = "*_test.go"
+						case "go_test":
+							includePattern = "*_test.go"
+							goFiles = gopkg.XTestGoFiles
+							imports = gopkg.XTestImports
+							external = len(goFiles) > 0
 
-								if !external {
-									includePattern = "*.go"
-									goFiles = append(gopkg.GoFiles, gopkg.TestGoFiles...)
-									imports = append(gopkg.Imports, gopkg.TestImports...)
-								}
+							if !external {
+								includePattern = "*.go"
+								goFiles = append(gopkg.GoFiles, gopkg.TestGoFiles...)
+								imports = append(gopkg.Imports, gopkg.TestImports...)
 							}
-						} else {
+						}
+
+						if config.ExplicitSources.IsTrue() {
+							switch kind {
+							case "go_test", "go_library", "go_binary":
+								srcs := make([]string, 0, len(goFiles))
+
+								for _, filename := range goFiles {
+									info := dir.Files[filename]
+									if info.Mode()&os.ModeSymlink == 0 { // is not symlink
+										srcs = append(srcs, filename)
+									}
+								}
+
+								if !isGeneratedRule {
+									for _, target := range rule.AttrStrings("srcs") {
+										switch {
+										case strings.HasPrefix(target, ":"):
+										case strings.HasPrefix(target, "//"):
+										default:
+											continue
+										}
+
+										srcs = append(srcs, target)
+									}
+								}
+
+								rule.SetAttr("srcs", please.Strings(srcs...))
+							}
+						} else if !isGeneratedRule {
 							goFiles = goFilesFromExpr(rule.Attr("srcs"), dir)
 						}
 

@@ -31,15 +31,9 @@ func TestBuilder_Write(t *testing.T) {
 func (t *BuilderSuite) TestBuilder_Parse() {
 	type T = BuilderSuite
 
-	t.It("no errors when target contains f-strings", func(t *T) {
-		_, err := t.builder.Parse("BUILD.plz", unparsable)
+	t.It("does not error when parsing f-strings", func(t *T) {
+		_, err := t.builder.Parse("BUILD.plz", fstring)
 		require.NoError(t, err)
-		// have := (file(*bazel.File)).Unwrap()
-		// want := t.Buildtools()
-
-		// require.Equal(t, want, have)
-		// require.Error(t, err, want)
-		// require.Nil(t, file)
 	})
 
 	t.It("parses build file", func(t *T) {
@@ -236,7 +230,7 @@ go_get(
 )
 `)
 
-var unparsable = []byte(`
+var fstring = []byte(`
 package(default_visibility = ['PUBLIC'])
 
 subinclude('//build_defs:go')

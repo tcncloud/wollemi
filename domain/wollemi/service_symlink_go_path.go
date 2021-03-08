@@ -2,7 +2,6 @@ package wollemi
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,31 +12,25 @@ import (
 func (this *Service) SymlinkGoPath(force bool, paths []string) error {
 	paths = this.normalizePaths(paths)
 
-	r, err := this.please.QueryDeps(paths...)
+	deps, err := this.please.QueryDeps(paths...)
 	if err != nil {
 		return err
 	}
 
 	symlinks := make(map[string]string)
 
-	for {
-		target, err := r.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-
-		target = strings.TrimSuffix(target, "\n")
-		if strings.Contains(target, "#") {
+	for _, dep := range deps {
+		if strings.Contains(dep, "#") {
 			continue
 		}
 
-		if !strings.HasPrefix(target, "//third_party/go/") {
+		if !strings.HasPrefix(dep, "//third_party/go/") {
 			continue
 		}
 
-		gopkg, _ := split(target[17:])
+		gopkg, _ := split(dep[17:])
 
-		symlinks[gopkg] = target
+		symlinks[gopkg] = dep
 	}
 
 	type Symlink struct {

@@ -1,10 +1,8 @@
 package wollemi_test
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,14 +49,13 @@ func (t *ServiceSuite) TestService_SymlinkGoPath() {
 		}
 
 		t.please.EXPECT().QueryDeps(any).
-			DoAndReturn(func(paths ...string) (*bufio.Reader, error) {
+			DoAndReturn(func(paths ...string) ([]string, error) {
 				assert.Equal(t, []string{
 					"project/proto:all",
 					"project/service/routes/...",
 				}, paths)
 
-				r := strings.NewReader(strings.Join(have, "\n"))
-				return bufio.NewReader(r), nil
+				return have, nil
 			})
 
 		t.filesystem.EXPECT().Walk(goSrcPath("github.com/sirupsen"), any)

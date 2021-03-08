@@ -8,6 +8,7 @@ type Config struct {
 	DefaultVisibility         string            `json:"default_visibility,omitempty"`
 	KnownDependency           map[string]string `json:"known_dependency,omitempty"`
 	AllowUnresolvedDependency *optional.Bool    `json:"allow_unresolved_dependency,omitempty"`
+	ExplicitSources           *optional.Bool    `json:"explicit_sources,omitempty"`
 }
 
 func (this *Config) Merge(that *Config) *Config {
@@ -22,6 +23,7 @@ func (this *Config) Merge(that *Config) *Config {
 	merge := &Config{
 		DefaultVisibility:         this.DefaultVisibility,
 		AllowUnresolvedDependency: this.AllowUnresolvedDependency,
+		ExplicitSources:           this.ExplicitSources,
 	}
 
 	if that.DefaultVisibility != "" {
@@ -53,6 +55,10 @@ func (this *Config) Merge(that *Config) *Config {
 
 	if v := that.AllowUnresolvedDependency; v != nil {
 		merge.AllowUnresolvedDependency = v
+	}
+
+	if v := that.ExplicitSources; v != nil {
+		merge.ExplicitSources = v
 	}
 
 	return merge
