@@ -641,7 +641,9 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 							return iPath < jPath
 						})
 
-						rule.SetAttr("deps", please.Strings(deps...))
+						if len(deps) > 0 {
+							rule.SetAttr("deps", please.Strings(deps...))
+						}
 
 						if isGeneratedRule {
 							dir.Build.SetRule(rule)
