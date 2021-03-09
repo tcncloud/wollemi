@@ -134,6 +134,79 @@ func (t *ServiceSuite) TestService_GoFormat() {
 		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
 	})
 
+	t.It("supports multiple go_test rules", func(t *T) {
+		data := t.GoFormatTestData()
+
+		data.Config["app/example"] = &filesystem.Config{}
+
+		data.ImportDir["app/example"] = &golang.Package{
+			Name: "example",
+			XTestGoFiles: []string{
+				"one_test.go",
+				"two_test.go",
+			},
+			XTestImports: []string{
+				"github.com/spf13/pflag",
+				"github.com/spf13/cobra",
+				"testing",
+			},
+			GoFileImports: map[string][]string{
+				"one_test.go": []string{
+					"github.com/spf13/pflag",
+					"testing",
+				},
+				"two_test.go": []string{
+					"github.com/spf13/cobra",
+					"testing",
+				},
+			},
+		}
+
+		data.Parse["app/example/BUILD.plz"] = &please.BuildFile{
+			Path: "app/example/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_test", []please.Expr{
+					please.NewAssignExpr("=", "name", "one_test"),
+					please.NewAssignExpr("=", "srcs", please.NewListExpr("one_test.go")),
+					please.NewAssignExpr("=", "external", true),
+				}),
+				please.NewCallExpr("go_test", []please.Expr{
+					please.NewAssignExpr("=", "name", "two_test"),
+					please.NewAssignExpr("=", "srcs", please.NewListExpr("two_test.go")),
+					please.NewAssignExpr("=", "external", true),
+				}),
+			},
+		}
+
+		data.Write["app/example/BUILD.plz"] = &please.BuildFile{
+			Path: "app/example/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_test", []please.Expr{
+					please.NewAssignExpr("=", "name", "one_test"),
+					please.NewAssignExpr("=", "srcs", please.NewListExpr("one_test.go")),
+					please.NewAssignExpr("=", "external", true),
+					please.NewAssignExpr("=", "deps", please.NewListExpr(
+						"//third_party/go/github.com/spf13:pflag",
+					)),
+				}),
+				please.NewCallExpr("go_test", []please.Expr{
+					please.NewAssignExpr("=", "name", "two_test"),
+					please.NewAssignExpr("=", "srcs", please.NewListExpr("two_test.go")),
+					please.NewAssignExpr("=", "external", true),
+					please.NewAssignExpr("=", "deps", please.NewListExpr(
+						"//third_party/go/github.com/spf13:cobra",
+					)),
+				}),
+			},
+		}
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, gopkg)
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/example"}))
+	})
+
 	t.It("allows internal go_test to depend on go_library without go import", func(t *T) {
 		data := t.GoFormatTestData()
 
@@ -290,6 +363,8 @@ func (t *ServiceSuite) TestService_GoFormat() {
 }
 
 func (t *ServiceSuite) MockGoFormat(td *GoFormatTestData) {
+	td.Build()
+
 	t.golang.EXPECT().ImportDir(any, any).AnyTimes().
 		DoAndReturn(func(path string, names []string) (*golang.Package, error) {
 			gopkg, ok := td.ImportDir[path]
@@ -458,6 +533,48 @@ type GoFormatTestData struct {
 	Graph     *please.Graph
 }
 
+func (data *GoFormatTestData) Build() {
+	for path, pkg := range data.ImportDir {
+		data.Stat[path] = &FileInfo{
+			FileName:  filepath.Base(path),
+			FileMode:  os.FileMode(2147484141),
+			FileIsDir: true,
+		}
+
+		files := pkg.GoFiles
+		files = append(files, pkg.TestGoFiles...)
+		files = append(files, pkg.XTestGoFiles...)
+
+		for _, name := range files {
+			data.Stat[filepath.Join(path, name)] = &FileInfo{
+				FileName: name,
+				FileMode: os.FileMode(420),
+			}
+		}
+	}
+
+	for path, _ := range data.Parse {
+		data.Stat[path] = &FileInfo{
+			FileName: filepath.Base(path),
+			FileMode: os.FileMode(420),
+		}
+	}
+
+	for path, info := range data.Stat {
+		if _, ok := data.Lstat[path]; !ok {
+			data.Lstat[path] = info
+		}
+	}
+
+	data.Walk = make([]string, 0, len(data.Lstat))
+
+	for path, _ := range data.Lstat {
+		data.Walk = append(data.Walk, path)
+	}
+
+	sort.Strings(data.Walk)
+}
+
 func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 	data := &GoFormatTestData{
 		Config: map[string]*filesystem.Config{
@@ -471,6 +588,7 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 			"github.com/golang/protobuf/proto":                 false,
 			"github.com/golang/protobuf/proto/ptypes/wrappers": false,
 			"github.com/spf13/cobra":                           false,
+			"github.com/spf13/pflag":                           false,
 			"github.com/stretchr/testify/assert":               false,
 			"github.com/stretchr/testify/require":              false,
 			"github.com/wollemi_test/app/protos":               false,
@@ -885,19 +1003,7 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 		},
 	}
 
-	for path, info := range data.Stat {
-		if _, ok := data.Lstat[path]; !ok {
-			data.Lstat[path] = info
-		}
-	}
-
-	data.Walk = make([]string, 0, len(data.Lstat))
-
-	for path, _ := range data.Lstat {
-		data.Walk = append(data.Walk, path)
-	}
-
-	sort.Strings(data.Walk)
+	data.Build()
 
 	return data
 }

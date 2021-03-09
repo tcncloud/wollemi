@@ -528,7 +528,10 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 							}
 
 							// Since this is a pre-existing rule we will attempt to determine
-							// the go imports using the srcs defined by the rule.
+							// the go imports using the srcs defined by the rule instead of the
+							// go package.
+							imports = imports[:0]
+
 							for _, name := range goFiles {
 								fileImports, ok := gopkg.GoFileImports[name]
 								if !ok {
