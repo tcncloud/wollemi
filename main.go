@@ -73,9 +73,7 @@ func (app *Application) Wollemi() (ctl.Wollemi, error) {
 		return nil, fmt.Errorf("could not chdir: %v", err)
 	}
 
-	gosrc := filepath.Join(golang.GOPATH(), "src") + "/"
-
-	var gopkg string
+	var gosrc, gopkg string
 
 	buf := bytes.NewBuffer(nil)
 	if err := filesystem.ReadAll(buf, filepath.Join(root, "go.mod")); err == nil {
@@ -85,11 +83,18 @@ func (app *Application) Wollemi() (ctl.Wollemi, error) {
 	}
 
 	if gopkg == "" {
-		if !strings.HasPrefix(root, gosrc) {
-			return nil, fmt.Errorf("project root must have go.mod or exist in go path")
-		}
+		for _, gopath := range strings.Split(golang.GOPATH(), ":") {
+			gosrc = filepath.Join(gopath, "src") + "/"
 
-		gopkg = strings.TrimPrefix(root, gosrc)
+			if strings.HasPrefix(root, gosrc) {
+				gopkg = strings.TrimPrefix(root, gosrc)
+				break
+			}
+		}
+	}
+
+	if gopkg == "" {
+		return nil, fmt.Errorf("project root must have go.mod or exist in go path")
 	}
 
 	bazel := bazel.NewBuilder(log, please.NewCtl(), filesystem)
