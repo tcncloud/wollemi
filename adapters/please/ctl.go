@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/peterebden/gcfg"
+
 	"github.com/tcncloud/wollemi/ports/please"
 )
 
@@ -17,6 +19,10 @@ func NewCtl() *Ctl {
 }
 
 type Ctl struct{}
+
+func (*Ctl) Config(path string) (config please.Config, err error) {
+	return config, gcfg.FatalOnly(gcfg.ReadFileInto(&config, path))
+}
 
 func (*Ctl) QueryDeps(targets ...string) ([]string, error) {
 	args := make([]string, 0, 4+len(targets))

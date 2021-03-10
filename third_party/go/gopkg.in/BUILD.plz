@@ -6,3 +6,9 @@ go_get(
     repo = "github.com/go-yaml/yaml",
     revision = "v2.2.2",
 )
+
+go_get(
+    name = "warnings",
+    get = "gopkg.in/warnings.v0",
+    revision = "v0.1.2",
+)

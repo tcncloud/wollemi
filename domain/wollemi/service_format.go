@@ -21,6 +21,10 @@ func (this *Service) Format(paths []string) error {
 	return this.GoFormat(false, paths)
 }
 
+func (this *Service) isInternal(path string) bool {
+	return this.gopkg != "" && strings.HasPrefix(path, this.gopkg)
+}
+
 func (this *Service) GoFormat(rewrite bool, paths []string) error {
 	paths = this.normalizePaths(paths)
 
@@ -91,7 +95,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 						goroot, ok := isGoroot[godep]
 						if !ok {
-							if prefix = strings.HasPrefix(godep, this.gopkg); prefix {
+							if prefix = this.isInternal(godep); prefix {
 								goroot = false
 							} else {
 								goroot = this.golang.IsGoroot(godep)
@@ -106,7 +110,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 						path := godep
 
-						if prefix || strings.HasPrefix(path, this.gopkg) {
+						if prefix || this.isInternal(path) {
 							path = strings.TrimPrefix(path, this.gopkg+"/")
 						} else {
 							path = filepath.Join("third_party/go", path)
@@ -214,9 +218,9 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 	gen := NewChanFunc(runtime.NumCPU()-1, 0)
 
 	getTarget := (func() func(*filesystem.Config, string, bool) (string, string) {
-		var inner func(*filesystem.Config, string, bool) (string, string)
+		var inner func(*filesystem.Config, string, bool, int) (string, string)
 
-		inner = func(config *filesystem.Config, path string, isFile bool) (string, string) {
+		inner = func(config *filesystem.Config, path string, isFile bool, depth int) (string, string) {
 			if target, ok := config.KnownDependency[path]; ok {
 				return target, path
 			}
@@ -229,14 +233,30 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 				}
 			}
 
-			if strings.HasPrefix(path, this.gopkg+"/") {
-				relpath := strings.TrimPrefix(path, this.gopkg+"/")
+			if depth == 0 {
+				if dir, ok := directories[filepath.Dir(path)]; ok {
+					name := filepath.Base(path)
 
-				if target, ok := internal[relpath]; ok {
-					return target, path
+					if dir.Build != nil {
+						if rule := dir.Build.GetRule(name); rule != nil {
+							return fmt.Sprintf("//%s:%s", dir.Path, name), dir.Path
+						}
+					}
 				}
 
-				return fmt.Sprintf("//%s", relpath), path
+				if _, ok := directories[path]; ok {
+					return fmt.Sprintf("//%s", path), path
+				}
+
+				if this.isInternal(path) {
+					relpath := strings.TrimPrefix(path, this.gopkg+"/")
+
+					if target, ok := internal[relpath]; ok {
+						return target, path
+					}
+
+					return fmt.Sprintf("//%s", relpath), path
+				}
 			}
 
 			targets, ok := external[path]
@@ -256,14 +276,14 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 				return "", path
 			}
 
-			return inner(config, path, isFile)
+			return inner(config, path, isFile, depth+1)
 		}
 
 		return func(config *filesystem.Config, path string, isFile bool) (string, string) {
 			var target string
 
 			get.RunBlock(func() {
-				target, path = inner(config, path, isFile)
+				target, path = inner(config, path, isFile, 0)
 			})
 
 			return target, path

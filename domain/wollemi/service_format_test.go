@@ -134,6 +134,111 @@ func (t *ServiceSuite) TestService_GoFormat() {
 		require.NoError(t, wollemi.GoFormat(rewrite, []string{"app/server"}))
 	})
 
+	t.It("supports projects lacking a module name", func(t *T) {
+		data := t.GoFormatTestData()
+
+		data.Config["common"] = &filesystem.Config{}
+		data.Config["common/go/kafka"] = &filesystem.Config{}
+
+		data.ImportDir["common"] = &golang.Package{
+			Name:    "common",
+			GoFiles: []string{"main.go"},
+			Imports: []string{
+				"common/go/kafka",
+				"github.com/spf13/cobra",
+			},
+			GoFileImports: map[string][]string{
+				"main.go": []string{
+					"common/go/kafka",
+					"github.com/spf13/cobra",
+				},
+			},
+		}
+
+		data.ImportDir["common/go/kafka"] = &golang.Package{
+			Name:    "kafka",
+			GoFiles: []string{"kafka.go"},
+			Imports: []string{
+				"database/sql",
+				"google.golang.org/grpc",
+			},
+			GoFileImports: map[string][]string{
+				"kafka.go": []string{
+					"database/sql",
+					"google.golang.org/grpc",
+				},
+			},
+		}
+
+		data.Stat["/go/src/database/sql"] = nil
+		data.Stat["/go/src/github.com/spf13/cobra"] = nil
+		data.Stat["/go/src/google.golang.org/grpc"] = nil
+
+		data.Stat["common/go/kafka"] = &FileInfo{
+			FileName:  "kafka",
+			FileMode:  os.FileMode(2147484141),
+			FileIsDir: true,
+		}
+
+		data.Stat["common/go"] = &FileInfo{
+			FileName:  "go",
+			FileMode:  os.FileMode(2147484141),
+			FileIsDir: true,
+		}
+
+		for _, path := range []string{
+			"common/BUILD.plz",
+			"common/go/kafka/BUILD.plz",
+		} {
+			data.Parse[path] = nil
+			data.Lstat[path] = nil
+			data.Stat[path] = nil
+		}
+
+		data.IsGoroot["common/go/kafka"] = false
+
+		data.Stat["/go/src/common/go/kafka"] = &FileInfo{
+			FileName:  "kafka",
+			FileMode:  os.FileMode(2147484141),
+			FileIsDir: true,
+		}
+
+		data.Write["common/go/kafka/BUILD.plz"] = &please.BuildFile{
+			Path: "common/go/kafka/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_library", []please.Expr{
+					please.NewAssignExpr("=", "name", "kafka"),
+					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+					please.NewAssignExpr("=", "visibility", []string{"//common/..."}),
+					please.NewAssignExpr("=", "deps", please.NewListExpr(
+						"//third_party/go/google.golang.org:grpc",
+					)),
+				}),
+			},
+		}
+
+		data.Write["common/BUILD.plz"] = &please.BuildFile{
+			Path: "common/BUILD.plz",
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_library", []please.Expr{
+					please.NewAssignExpr("=", "name", "common"),
+					please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+					please.NewAssignExpr("=", "visibility", []string{"//common/..."}),
+					please.NewAssignExpr("=", "deps", please.NewListExpr(
+						"//common/go/kafka",
+						"//third_party/go/github.com/spf13:cobra",
+					)),
+				}),
+			},
+		}
+
+		t.MockGoFormat(data)
+
+		wollemi := t.New(gosrc, "")
+
+		require.NoError(t, wollemi.GoFormat(rewrite, []string{"common/..."}))
+	})
+
 	t.It("supports multiple go_test rules", func(t *T) {
 		data := t.GoFormatTestData()
 
@@ -734,6 +839,34 @@ func (t *ServiceSuite) GoFormatTestData() *GoFormatTestData {
 		},
 		ParseErr: map[string]error{},
 		Stat: map[string]*FileInfo{
+			"third_party/go/google.golang.org/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
+			"third_party/go/github.com/stretchr/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
+			"third_party/go/github.com/golang/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
+			"third_party/go/github.com/spf13/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
+			"app/protos/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
+			"app/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
+			"app/server/BUILD.plz": &FileInfo{
+				FileName: "BUILD.plz",
+				FileMode: os.FileMode(420),
+			},
 			"app/protos/mock/BUILD.plz":                                                 nil,
 			"third_party/go/github.com/golang/mock/BUILD.plz":                           nil,
 			"third_party/go/github.com/golang/mock/gomock/BUILD.plz":                    nil,

@@ -2,5 +2,8 @@ go_library(
     name = "please",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
-    deps = ["//ports/please"],
+    deps = [
+        "//ports/please",
+        "//third_party/go/github.com/peterebden:gcfg",
+    ],
 )

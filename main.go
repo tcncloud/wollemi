@@ -93,11 +93,18 @@ func (app *Application) Wollemi() (ctl.Wollemi, error) {
 		}
 	}
 
-	if gopkg == "" {
-		return nil, fmt.Errorf("project root must have go.mod or exist in go path")
+	if gopkg == "" && gosrc != root {
+		gosrc = root
 	}
 
-	bazel := bazel.NewBuilder(log, please.NewCtl(), filesystem)
+	pleaseCtl := please.NewCtl()
+
+	config, err := pleaseCtl.Config(filepath.Join(root, ".plzconfig"))
+	if err == nil && config.Go.ImportPath != "" {
+		gopkg = config.Go.ImportPath
+	}
+
+	bazel := bazel.NewBuilder(log, pleaseCtl, filesystem)
 
 	log.WithField("working_directory", wd).
 		WithField("project_root", root).
