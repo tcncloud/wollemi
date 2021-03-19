@@ -35,20 +35,14 @@ Last, but not least you can download Wollemi with Please itself.
 In your project create a file (eg. `tools/BUILD.plz`) with following content:
 
 ```starlark
-build_rule(
+WOLLEMI_VERSION = "v0.2.1"
+remote_file(
     name = "wollemi",
+    url = f"https://github.com/tcncloud/wollemi/releases/download/{WOLLEMI_VERSION}/wollemi-{WOLLEMI_VERSION}-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz",
+    extract = True,
     binary = True,
-    srcs = [remote_file(
-        name = "wollemi",
-        _tag = "download",
-        url = f"https://github.com/tcncloud/wollemi/releases/download/v0.1.0/wollemi-v0.1.0-{CONFIG.HOSTOS}-{CONFIG.HOSTARCH}.tar.gz"
-    )],
-    cmd = " && ".join([
-        "tar xf $SRCS",
-    ]),
-    outs = ["wollemi"],
-    visibility = ["PUBLIC"],
 )
+
 ```
 
 **Note:** commands like `gofmt` require `GOROOT` to be set, so running Wollemi with `plz run` requires wrapper that sets `GOROOT` as an environment variable:
