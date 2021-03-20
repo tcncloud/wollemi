@@ -7,7 +7,7 @@ import (
 )
 
 func GoFmtCmd(app ctl.Application) *cobra.Command {
-	var rewrite bool
+	const rewrite bool = true
 
 	cmd := &cobra.Command{
 		Use:   "gofmt [path...]",
@@ -45,10 +45,10 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 
 			wollemi gofmt project/service/routes/...
 
-			When gofmt is run on an individual package the default visibility applied is
+			When gofmt is run on an individual package the default visiblity applied is
 			["PUBLIC"] for any new go build rules generated.
 
-			Alternatively the default visibility can be explicitly provided through
+			Alternatively the default visiblity can be explicitly provided through
 			a .wollemi.json config file which will override both implicit cases above.
 
 			Sometimes a third party dependency is required even though the go code
@@ -80,9 +80,6 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 			return wollemi.GoFormat(rewrite, args)
 		},
 	}
-
-	cmd.Flags().BoolVar(&rewrite, "rewrite", true, "Allow rewriting of build files")
-
 
 	return cmd
 }
