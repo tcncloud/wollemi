@@ -1,14 +1,14 @@
 package please
 
 type Graph struct {
-	Packages map[string]*Package `json:"packages,omitempty"`
+	Packages map[string]*GraphPackage `json:"packages,omitempty"`
 }
 
-type Package struct {
-	Targets map[string]*Target `json:"targets,omitempty"`
+type GraphPackage struct {
+	Targets map[string]*GraphTarget `json:"targets,omitempty"`
 }
 
-type Target struct {
+type GraphTarget struct {
 	Inputs   []string `json:"inputs,omitempty"`
 	Outs     []string `json:"outs,omitempty"`
 	Srcs     []string `json:"srcs,omitempty"`

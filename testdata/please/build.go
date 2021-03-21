@@ -19,8 +19,8 @@ type (
 	KeyValueExpr = please.KeyValueExpr
 	LiteralExpr  = please.LiteralExpr
 	Graph        = please.Graph
-	Target       = please.Target
-	Package      = please.Package
+	GraphTarget  = please.GraphTarget
+	GraphPackage = please.GraphPackage
 )
 
 type BuildFile struct {

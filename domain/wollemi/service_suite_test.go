@@ -51,11 +51,13 @@ func (suite *ServiceSuite) Run(name string, yield func(*ServiceSuite)) {
 		suite.golang = mock_golang.NewMockImporter(suite.ctrl)
 		suite.please = mock_please.NewMockBuilder(suite.ctrl)
 
-		yield(suite)
+		defer func() {
+			for _, line := range suite.logger.Lines() {
+				t.Log(fmt.Sprint(line))
+			}
+		}()
 
-		for _, line := range suite.logger.Lines() {
-			t.Log(fmt.Sprint(line))
-		}
+		yield(suite)
 	})
 }
 

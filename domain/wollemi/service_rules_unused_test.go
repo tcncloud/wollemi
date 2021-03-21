@@ -121,26 +121,26 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 
 func (t *ServiceSuite) MockRulesUnused() {
 	graph := &please.Graph{
-		Packages: map[string]*please.Package{
-			"app": &please.Package{
-				Targets: map[string]*please.Target{
-					"files": &please.Target{},
-					"app": &please.Target{
+		Packages: map[string]*please.GraphPackage{
+			"app": &please.GraphPackage{
+				Targets: map[string]*please.GraphTarget{
+					"files": &please.GraphTarget{},
+					"app": &please.GraphTarget{
 						Deps: []string{
 							"//third_party/go/github.com/spf13:cobra",
 						},
 					},
 				},
 			},
-			"third_party/go/github.com/spf13": &please.Package{
-				Targets: map[string]*please.Target{
-					"cobra": &please.Target{
+			"third_party/go/github.com/spf13": &please.GraphPackage{
+				Targets: map[string]*please.GraphTarget{
+					"cobra": &please.GraphTarget{
 						Deps: []string{
 							"//third_party/go/github.com/spf13:pflag",
 						},
 					},
-					"viper": &please.Target{},
-					"pflag": &please.Target{},
+					"viper": &please.GraphTarget{},
+					"pflag": &please.GraphTarget{},
 				},
 			},
 		},

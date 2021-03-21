@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/tcncloud/wollemi/ports/filesystem"
 	"github.com/tcncloud/wollemi/ports/golang"
 	"github.com/tcncloud/wollemi/ports/logging"
 	"github.com/tcncloud/wollemi/ports/please"
@@ -46,6 +47,11 @@ type Service struct {
 	wd         string
 	gosrc      string
 	gopkg      string
+	gofmt      struct {
+		getTarget func(*filesystem.Config, string, bool) (string, string)
+		isGoroot  map[string]bool
+		paths     []string
+	}
 }
 
 func (this *Service) normalizePaths(paths []string) []string {

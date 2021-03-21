@@ -115,16 +115,16 @@ func (this *Service) RulesUnused(prune bool, kinds, paths, exclude []string) err
 			continue
 		}
 
-		path, name := split(rule)
+		target := please.Split(rule)
 
-		unused[path] = append(unused[path], name)
+		unused[target.Path] = append(unused[target.Path], target.Name)
 
-		if _, ok := parsed[path]; ok {
+		if _, ok := parsed[target.Path]; ok {
 			continue
 		}
 
-		nonBlockingSend(parse, &Directory{Path: path})
-		parsed[path] = struct{}{}
+		nonBlockingSend(parse, &Directory{Path: target.Path})
+		parsed[target.Path] = struct{}{}
 	}
 
 	close(parse)

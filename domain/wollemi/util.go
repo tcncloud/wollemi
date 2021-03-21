@@ -3,25 +3,9 @@ package wollemi
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/tcncloud/wollemi/ports/please"
 )
-
-// split splits a target into path and name components.
-func split(target string) (string, string) {
-	target = strings.TrimPrefix(target, "//")
-
-	colon := strings.LastIndex(target, ":")
-	if colon < 0 {
-		base := filepath.Base(target)
-		switch base {
-		case "...":
-			return filepath.Dir(target), base
-		default:
-			return target, base
-		}
-	}
-
-	return target[:colon], target[colon+1:]
-}
 
 // noBuildableGoSources determines if this error occurred because no
 // buildable golang sources were detected in the package.
@@ -34,25 +18,23 @@ func noBuildableGoSources(err error) bool {
 	}
 }
 
-func inRunPath(target string, run ...string) bool {
+func inRunPath(targetPath string, run ...string) bool {
 	for _, path := range run {
 		if path == "..." {
 			return true
 		}
 
-		targetPath, _ := split(target)
+		target := please.Split(targetPath)
 
 		if filepath.Base(path) != "..." {
-			if path == targetPath {
+			if path == target.Path {
 				return true
 			} else {
 				continue
 			}
 		}
 
-		dir := filepath.Dir(path)
-
-		if strings.HasPrefix(targetPath, dir) {
+		if strings.HasPrefix(target.Path, filepath.Dir(path)) {
 			return true
 		}
 	}

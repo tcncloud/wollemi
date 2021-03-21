@@ -4,21 +4,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/tcncloud/wollemi/ports/please"
 )
 
 func (this *Service) SymlinkList(name string, broken, prune bool, exclude, include []string) {
 	include = this.normalizePaths(include)
 
-	for _, target := range include {
-		targetPath, targetName := split(target)
+	for _, targetPath := range include {
+		target := please.Split(targetPath)
 
-		err := this.filesystem.Walk(targetPath, func(path string, info os.FileInfo, err error) error {
+		err := this.filesystem.Walk(target.Path, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 
 			if info.IsDir() {
-				if targetName != "..." && path != targetPath {
+				if target.Name != "..." && path != target.Path {
 					return filepath.SkipDir
 				}
 
@@ -97,7 +99,7 @@ func (this *Service) SymlinkList(name string, broken, prune bool, exclude, inclu
 
 		if err != nil {
 			this.log.WithError(err).
-				WithField("path", targetPath).
+				WithField("path", target.Path).
 				Warn("could not walk")
 		}
 	}

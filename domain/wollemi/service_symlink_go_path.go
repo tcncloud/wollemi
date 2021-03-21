@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/tcncloud/wollemi/ports/please"
 )
 
 func (this *Service) SymlinkGoPath(force bool, paths []string) error {
@@ -28,9 +30,9 @@ func (this *Service) SymlinkGoPath(force bool, paths []string) error {
 			continue
 		}
 
-		gopkg, _ := split(dep[17:])
+		target := please.Split(dep[17:])
 
-		symlinks[gopkg] = dep
+		symlinks[target.Path] = dep
 	}
 
 	type Symlink struct {

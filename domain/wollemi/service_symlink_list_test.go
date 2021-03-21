@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/tcncloud/wollemi/ports/golang"
+	"github.com/tcncloud/wollemi/testdata/please"
 )
 
 func TestService_SymlinkList(t *testing.T) {
@@ -22,7 +25,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 	)
 
 	t.It("can list all project symlinks", func(t *T) {
-		data := t.GoFormatTestData()
+		data := t.GoSymlinkTestData()
 
 		t.filesystem.EXPECT().Walk(any, any).
 			DoAndReturn(func(root string, walkFn filepath.WalkFunc) error {
@@ -93,7 +96,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 	})
 
 	t.It("can list only broken symlinks", func(t *T) {
-		data := t.GoFormatTestData()
+		data := t.GoSymlinkTestData()
 
 		t.filesystem.EXPECT().Walk(any, any).
 			DoAndReturn(func(root string, walkFn filepath.WalkFunc) error {
@@ -179,7 +182,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 	})
 
 	t.It("can list symlinks matching name", func(t *T) {
-		data := t.GoFormatTestData()
+		data := t.GoSymlinkTestData()
 
 		t.filesystem.EXPECT().Walk(any, any).
 			DoAndReturn(func(root string, walkFn filepath.WalkFunc) error {
@@ -238,7 +241,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 	})
 
 	t.It("can prune matched symlinks", func(t *T) {
-		data := t.GoFormatTestData()
+		data := t.GoSymlinkTestData()
 
 		t.filesystem.EXPECT().Walk(any, any).
 			DoAndReturn(func(root string, walkFn filepath.WalkFunc) error {
@@ -318,7 +321,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 	})
 
 	t.It("can exclude listing symlinks by path prefix", func(t *T) {
-		data := t.GoFormatTestData()
+		data := t.GoSymlinkTestData()
 
 		skipDir := make(map[string]struct{})
 
@@ -393,4 +396,192 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 
 		assert.ElementsMatch(t, want, t.logger.Lines())
 	})
+}
+
+func (t *ServiceSuite) GoSymlinkTestData() *GoFormatTestData {
+	data := &GoFormatTestData{
+		Gosrc: gosrc,
+		Gopkg: gopkg,
+		Paths: []string{"app/..."},
+		ImportDir: map[string]*golang.Package{
+			"app/protos": &golang.Package{
+				GoFiles: []string{
+					"service.pb.go",
+					"entities.pb.go",
+				},
+				GoFileImports: map[string][]string{
+					"service.pb.go": []string{
+						"github.com/golang/protobuf/proto",
+						"google.golang.org/grpc",
+						"google.golang.org/grpc/codes",
+						"google.golang.org/grpc/status",
+					},
+					"entities.pb.go": []string{
+						"github.com/golang/protobuf/proto",
+					},
+				},
+			},
+			"app/protos/mock": &golang.Package{
+				Name: "mock_protos",
+				GoFiles: []string{
+					"mock.mg.go",
+				},
+				GoFileImports: map[string][]string{
+					"mock.mg.go": []string{
+						"github.com/golang/mock/gomock",
+						"github.com/example/app/protos",
+						"google.golang.org/grpc",
+						"google.golang.org/grpc/metadata",
+					},
+				},
+			},
+			"app/server": &golang.Package{
+				GoFiles: []string{
+					"server.go",
+				},
+				XTestGoFiles: []string{
+					"server_test.go",
+				},
+				GoFileImports: map[string][]string{
+					"server_test.go": []string{
+						"github.com/golang/mock/gomock",
+						"github.com/golang/protobuf/proto/ptypes/wrappers",
+						"github.com/stretchr/testify/assert",
+						"github.com/stretchr/testify/require",
+						"github.com/example/app/protos/mock",
+						"testing",
+					},
+					"server.go": []string{
+						"database/sql",
+						"encoding/json",
+						"github.com/golang/protobuf/proto/ptypes/wrappers",
+						"github.com/example/app/protos",
+						"google.golang.org/grpc",
+						"google.golang.org/grpc/credentials",
+						"strconv",
+						"strings",
+					},
+				},
+			},
+			"app": &golang.Package{
+				Name: "main",
+				GoFiles: []string{
+					"main.go",
+				},
+				TestGoFiles: []string{
+					"main_test.go",
+				},
+				GoFileImports: map[string][]string{
+					"main_test.go": []string{
+						"github.com/golang/mock/gomock",
+						"github.com/stretchr/testify/assert",
+						"github.com/stretchr/testify/require",
+						"testing",
+					},
+					"main.go": []string{
+						"fmt",
+						"github.com/spf13/cobra",
+						"github.com/example/app/server",
+					},
+				},
+			},
+		},
+		Lstat: map[string]*FileInfo{
+			"app/protos/service.pb.go": &FileInfo{
+				FileName: "service.pb.go",
+				FileMode: os.FileMode(134218221),
+			},
+			"app/protos/entities.pb.go": &FileInfo{
+				FileName: "entities.pb.go",
+				FileMode: os.FileMode(134218221),
+			},
+			"app/protos/mock/mock.mg.go": &FileInfo{
+				FileName: "mock.mg.go",
+				FileMode: os.FileMode(134218221),
+			},
+		},
+		Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+			"app/BUILD.plz": &please.BuildFile{
+				Stmt: []please.Expr{
+					please.NewCallExpr("go_binary", []please.Expr{
+						please.NewAssignExpr("=", "name", "app"),
+						please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+						please.NewAssignExpr("=", "visibility", []string{"//app/..."}),
+						please.NewAssignExpr("=", "deps", []string{
+							"//app/server",
+							"//third_party/go/github.com/spf13:cobra",
+						}),
+					}),
+					please.NewCallExpr("go_test", []please.Expr{
+						please.NewAssignExpr("=", "name", "test"),
+						please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"})),
+						please.NewAssignExpr("=", "deps", []string{
+							"//app/server",
+							"//third_party/go/github.com/golang:mock",
+							"//third_party/go/github.com/spf13:cobra",
+							"//third_party/go/github.com/stretchr:testify",
+						}),
+					}),
+				},
+			},
+			"app/server/BUILD.plz": &please.BuildFile{
+				Stmt: []please.Expr{
+					please.NewCallExpr("go_library", []please.Expr{
+						please.NewAssignExpr("=", "name", "server"),
+						please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+						please.NewAssignExpr("=", "visibility", []string{"//app/..."}),
+						please.NewAssignExpr("=", "deps", []string{
+							"//app/protos",
+							"//third_party/go/github.com/golang:protobuf",
+							"//third_party/go/google.golang.org:grpc",
+						}),
+					}),
+					please.NewCallExpr("go_test", []please.Expr{
+						please.NewAssignExpr("=", "name", "test"),
+						please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*_test.go"})),
+						please.NewAssignExpr("=", "external", true),
+						please.NewAssignExpr("=", "deps", []string{
+							"//app/protos:mock",
+							"//third_party/go/github.com/golang:mock",
+							"//third_party/go/github.com/golang:protobuf",
+							"//third_party/go/github.com/stretchr:testify",
+						}),
+					}),
+				},
+			},
+			"app/protos/BUILD.plz": &please.BuildFile{
+				Stmt: []please.Expr{
+					please.NewCallExpr("grpc_library", []please.Expr{
+						please.NewAssignExpr("=", "name", "protos"),
+						please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.proto"})),
+						please.NewAssignExpr("=", "protoc_flags", []string{
+							"-I third_party/proto",
+							"-I .",
+						}),
+						please.NewAssignExpr("=", "visibility", []string{"//app/..."}),
+						please.NewAssignExpr("=", "labels", []string{"link:app/protos"}),
+					}),
+					please.NewCallExpr("go_mock", []please.Expr{
+						please.NewAssignExpr("=", "name", "mock"),
+						please.NewAssignExpr("=", "package", "github.com/example/app/protos"),
+						please.NewAssignExpr("=", "visibility", []string{"//..."}),
+						please.NewAssignExpr("=", "deps", []string{
+							":protos",
+							"//third_party/go/github.com/golang:mock",
+							"//third_party/go/google.golang.org:grpc",
+						}),
+					}),
+				},
+			},
+		}),
+		Readlink: map[string]string{
+			"app/protos/service.pb.go":   "plz-out/gen/app/protos/service.pb.go",
+			"app/protos/entities.pb.go":  "plz-out/gen/app/protos/entities.pb.go",
+			"app/protos/mock/mock.mg.go": "plz-out/gen/app/protos/mock/mock.mg.go",
+		},
+	}
+
+	data.Prepare()
+
+	return data
 }

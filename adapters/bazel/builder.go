@@ -88,7 +88,7 @@ func (this *Builder) Write(file please.File) error {
 			}
 		}
 
-		log := this.log.WithField("path", filepath.Dir(file.Path))
+		log := this.log.WithField("path", filepath.Join("/", filepath.Dir(file.Path)))
 
 		if file.IsEmpty() {
 			err := this.filesystem.Remove(file.Path)
