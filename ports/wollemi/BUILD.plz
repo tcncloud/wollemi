@@ -2,9 +2,7 @@ go_library(
     name = "wollemi",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
-    deps = [
-      "//domain/optional",
-    ],
+    deps = ["//domain/optional"],
 )
 
 go_test(

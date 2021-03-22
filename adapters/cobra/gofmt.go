@@ -12,6 +12,7 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 
 	rewrite := config.Gofmt.GetRewrite()
 	create := config.Gofmt.GetCreate()
+	manage := config.Gofmt.GetManage()
 
 	cmd := &cobra.Command{
 		Use:   "gofmt [path...]",
@@ -89,12 +90,17 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 				config.Gofmt.Create = create
 			}
 
+			if cmd.Flags().Changed("manage") {
+				config.Gofmt.Manage = manage
+			}
+
 			return wollemi.GoFormat(config, args)
 		},
 	}
 
 	cmd.Flags().BoolVar(&rewrite, "rewrite", rewrite, "allow rewriting of build files")
 	cmd.Flags().StringSliceVar(&create, "create", create, "allow missing rule kinds to be created")
+	cmd.Flags().StringSliceVar(&manage, "manage", manage, "allow existing rule kinds to be managed")
 
 	return cmd
 }

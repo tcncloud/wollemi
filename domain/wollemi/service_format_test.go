@@ -983,6 +983,75 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "manages custom rule kinds when configured through ctl",
+		Config: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Manage: []string{"go_custom_binary", "go_custom_test"},
+			},
+		},
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
+			Config: map[string]wollemi.Config{
+				"app": wollemi.Config{
+					Gofmt: wollemi.Gofmt{
+						Manage: []string{}, // package disabled; ctl should override
+					},
+				},
+			},
+			ImportDir: map[string]*golang.Package{
+				"app": &golang.Package{
+					Name:        "main",
+					GoFiles:     []string{"main.go"},
+					TestGoFiles: []string{"main_test.go"},
+					GoFileImports: map[string][]string{
+						"main.go": []string{"github.com/spf13/cobra"},
+						"main_test.go": []string{
+							"github.com/stretchr/testify",
+							"testing",
+						},
+					},
+				},
+			},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_custom_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+						please.NewCallExpr("go_custom_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "test"),
+							please.NewAssignExpr("=", "srcs", []string{"main_test.go"}),
+						}),
+					},
+				},
+			}),
+			Write: map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_custom_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+						please.NewCallExpr("go_custom_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "test"),
+							please.NewAssignExpr("=", "srcs", []string{"main_test.go"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/stretchr:testify",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 

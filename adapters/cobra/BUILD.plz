@@ -4,8 +4,8 @@ go_library(
     visibility = ["//..."],
     deps = [
         "//ports/ctl",
-        "//ports/wollemi",
         "//ports/logging",
+        "//ports/wollemi",
         "//third_party/go/github.com/spf13:cobra",
     ],
 )

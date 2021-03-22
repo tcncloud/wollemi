@@ -20,6 +20,15 @@ type Config struct {
 type Gofmt struct {
 	Rewrite *bool  `json:"rewrite,omitempty"`
 	Create  create `json:"create,omitempty"`
+	Manage  manage `json:"manage,omitempty"`
+}
+
+func (gofmt *Gofmt) GetRewrite() bool {
+	if gofmt != nil && gofmt.Rewrite != nil {
+		return *gofmt.Rewrite
+	}
+
+	return true
 }
 
 func (gofmt *Gofmt) GetCreate() []string {
@@ -30,12 +39,12 @@ func (gofmt *Gofmt) GetCreate() []string {
 	return []string{"go_binary", "go_library", "go_test"}
 }
 
-func (gofmt *Gofmt) GetRewrite() bool {
-	if gofmt != nil && gofmt.Rewrite != nil {
-		return *gofmt.Rewrite
+func (gofmt *Gofmt) GetManage() []string {
+	if gofmt != nil && gofmt.Manage != nil {
+		return gofmt.Manage
 	}
 
-	return true
+	return []string{"go_binary", "go_library", "go_test"}
 }
 
 func (this Config) Merge(that Config) Config {
@@ -84,6 +93,10 @@ func (this Config) Merge(that Config) Config {
 		merge.Gofmt.Create = v
 	}
 
+	if v := that.Gofmt.Manage; v != nil {
+		merge.Gofmt.Manage = v
+	}
+
 	return merge
 }
 
@@ -105,4 +118,66 @@ func (list *create) UnmarshalJSON(buf []byte) error {
 	}
 
 	return nil
+}
+
+type manage []string
+
+func (list *manage) UnmarshalJSON(buf []byte) error {
+	var gofmt *Gofmt
+
+	err := json.Unmarshal(buf, (*[]string)(list))
+
+	if err != nil {
+		s, unquoteErr := strconv.Unquote(string(buf))
+		if unquoteErr == nil {
+			switch s {
+			case "on", "default":
+				*list = gofmt.GetManage()
+				err = nil // recover
+			case "off":
+				*list = []string{}
+				err = nil // recover
+			}
+		}
+	}
+
+	if err == nil && len(*list) > 0 {
+		var expand []string
+
+		for _, kind := range *list {
+			if kind == "default" {
+				expand = appendUniqString(expand, gofmt.GetManage()...)
+			} else {
+				expand = appendUniqString(expand, kind)
+			}
+		}
+
+		*list = expand
+	}
+
+	return nil
+}
+
+func inStrings(from []string, value string) bool {
+	return indexStrings(from, value) >= 0
+}
+
+func appendUniqString(dest []string, from ...string) []string {
+	for _, s := range from {
+		if !inStrings(dest, s) {
+			dest = append(dest, s)
+		}
+	}
+
+	return dest
+}
+
+func indexStrings(from []string, value string) int {
+	for i, have := range from {
+		if value == have {
+			return i
+		}
+	}
+
+	return -1
 }

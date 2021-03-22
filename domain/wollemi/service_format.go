@@ -488,6 +488,10 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 
 		kind := rule.Kind()
 
+		if !inStrings(config.Gofmt.GetManage(), kind) {
+			return
+		}
+
 		switch kind {
 		case "go_binary", "go_library":
 			pkgFiles = dir.Gopkg.GoFiles
@@ -499,8 +503,6 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 				pkgFiles = append(dir.Gopkg.GoFiles, dir.Gopkg.TestGoFiles...)
 				external = false
 			}
-		default:
-			return
 		}
 
 		var ambiguous bool
@@ -568,7 +570,7 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 
 		var internal []string
 
-		if !external && rule.Kind() == "go_test" {
+		if kind == "go_test" && !external {
 			// Allow internal go_test rule to depend on go_library rule even
 			// though the go code does not. In the case of please this will
 			// just make the pre-compiled go library code available in the

@@ -27,6 +27,7 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
 			Gofmt: wollemi.Gofmt{
 				Rewrite: wollemi.Bool(true),
 				Create:  []string{"go_library", "go_test"},
+				Manage:  []string{"go_binary", "go_test"},
 			},
 		},
 		Data: `{
@@ -38,7 +39,8 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
       },
       "gofmt": {
         "rewrite": true,
-        "create": ["go_library", "go_test"]
+        "create": ["go_library", "go_test"],
+        "manage": ["go_binary", "go_test"]
       }
     }`,
 	}, {
@@ -63,6 +65,38 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
 		Want: wollemi.Config{
 			Gofmt: wollemi.Gofmt{
 				Create: []string{},
+			},
+		},
+	}, {
+		Title: "unmarshals json config when gofmt manage set to on",
+		Data:  `{"gofmt":{"manage":"on"}}`,
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Manage: []string{"go_binary", "go_library", "go_test"},
+			},
+		},
+	}, {
+		Title: "unmarshals json config when gofmt manage set to default",
+		Data:  `{"gofmt":{"manage":"default"}}`,
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Manage: []string{"go_binary", "go_library", "go_test"},
+			},
+		},
+	}, {
+		Title: "unmarshals json config when gofmt manage set to off",
+		Data:  `{"gofmt":{"manage":"off"}}`,
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Manage: []string{},
+			},
+		},
+	}, {
+		Title: "unmarshals json config when gofmt manage contains default",
+		Data:  `{"gofmt":{"manage":["default", "go_custom_binary"]}}`,
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Manage: []string{"go_binary", "go_library", "go_test", "go_custom_binary"},
 			},
 		},
 	}} {
