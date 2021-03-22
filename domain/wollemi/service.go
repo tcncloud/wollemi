@@ -9,12 +9,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/tcncloud/wollemi/ports/filesystem"
 	"github.com/tcncloud/wollemi/ports/golang"
 	"github.com/tcncloud/wollemi/ports/logging"
 	"github.com/tcncloud/wollemi/ports/please"
 	"github.com/tcncloud/wollemi/ports/wollemi"
 )
+
+type Config = wollemi.Config
+type Gofmt = wollemi.Gofmt
 
 func New(
 	log logging.Logger,
@@ -43,12 +45,13 @@ type Service struct {
 	filesystem wollemi.Filesystem
 	golang     golang.Importer
 	please     please.Builder
+	config     wollemi.Config
 	root       string
 	wd         string
 	gosrc      string
 	gopkg      string
 	gofmt      struct {
-		getTarget func(*filesystem.Config, string, bool) (string, string)
+		getTarget func(wollemi.Config, string, bool) (string, string)
 		isGoroot  map[string]bool
 		paths     []string
 	}

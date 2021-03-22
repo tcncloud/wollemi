@@ -2,7 +2,20 @@ go_library(
     name = "wollemi",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
-    deps = ["//ports/filesystem"],
+    deps = [
+      "//domain/optional",
+    ],
+)
+
+go_test(
+    name = "test",
+    srcs = glob(["*_test.go"]),
+    external = True,
+    deps = [
+        ":wollemi",
+        "//domain/optional",
+        "//third_party/go/github.com/stretchr:testify",
+    ],
 )
 
 go_mock(
@@ -14,6 +27,6 @@ go_mock(
     visibility = ["//..."],
     deps = [
         ":wollemi",
-        "//ports/filesystem",
+        "//domain/optional",
     ],
 )

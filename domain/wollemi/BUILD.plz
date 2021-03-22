@@ -3,7 +3,6 @@ go_library(
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
     deps = [
-        "//ports/filesystem",
         "//ports/golang",
         "//ports/logging",
         "//ports/please",
@@ -19,7 +18,6 @@ go_test(
     deps = [
         ":wollemi",
         "//domain/optional",
-        "//ports/filesystem",
         "//ports/golang",
         "//ports/golang:mock",
         "//ports/please:mock",

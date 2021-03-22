@@ -4,9 +4,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tcncloud/wollemi/ports/ctl"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
 
 func FmtCmd(app ctl.Application) *cobra.Command {
+	config := wollemi.Config{
+		Gofmt: wollemi.Gofmt{
+			Rewrite: wollemi.Bool(false),
+		},
+	}
+
 	cmd := &cobra.Command{
 		Use:   "fmt [path...]",
 		Short: "format build files",
@@ -36,7 +43,7 @@ func FmtCmd(app ctl.Application) *cobra.Command {
 				return err
 			}
 
-			return wollemi.Format(args)
+			return wollemi.Format(config, args)
 		},
 	}
 

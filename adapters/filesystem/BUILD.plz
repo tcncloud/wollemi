@@ -3,7 +3,7 @@ go_library(
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     visibility = ["//..."],
     deps = [
-        "//ports/filesystem",
         "//ports/logging",
+        "//ports/wollemi",
     ],
 )

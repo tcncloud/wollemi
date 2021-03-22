@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -13,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tcncloud/wollemi/domain/optional"
-	"github.com/tcncloud/wollemi/ports/filesystem"
+	"github.com/tcncloud/wollemi/domain/wollemi"
 	"github.com/tcncloud/wollemi/ports/golang"
 	"github.com/tcncloud/wollemi/testdata/expect"
 	"github.com/tcncloud/wollemi/testdata/please"
@@ -24,25 +25,24 @@ func TestService_GoFormat(t *testing.T) {
 }
 
 const (
-	gosrc   = "/go/src"
-	gopkg   = "github.com/example"
-	rewrite = true
+	gosrc = "/go/src"
+	gopkg = "github.com/example"
 )
 
 func (t *ServiceSuite) TestService_GoFormat() {
 	type T = ServiceSuite
 
 	for _, tt := range []struct {
-		Title string
-		Data  *GoFormatTestData
+		Title  string
+		Config wollemi.Config
+		Data   *GoFormatTestData
 	}{{ // TEST_CASE -------------------------------------------------------------
-		Title: "generates missing go_binary with internal go_test",
+		Title: "creates missing go_binary with internal go_test",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
-			Parse:   t.WithThirdPartyGo(nil),
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app"},
+			Parse: t.WithThirdPartyGo(nil),
 			ImportDir: map[string]*golang.Package{
 				"app": &golang.Package{
 					Name:        "main",
@@ -90,12 +90,11 @@ func (t *ServiceSuite) TestService_GoFormat() {
 			},
 		},
 	}, { // TEST_CASE ------------------------------------------------------------
-		Title: "generates missing go_library with external go_test",
+		Title: "creates missing go_library with external go_test",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Rewrite: rewrite,
-			Paths:   []string{"app/server"},
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
 			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
 				"app/protos/BUILD.plz": &please.BuildFile{
 					Stmt: []please.Expr{
@@ -177,12 +176,11 @@ func (t *ServiceSuite) TestService_GoFormat() {
 			},
 		},
 	}, { // TEST_CASE ------------------------------------------------------------
-		Title: "generates missing go rules across multiple directories",
+		Title: "creates missing go rules across multiple directories",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Rewrite: rewrite,
-			Paths:   []string{"app/..."},
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
 			ImportDir: map[string]*golang.Package{
 				"app": &golang.Package{
 					Name:        "main",
@@ -331,10 +329,9 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "manages existing go_library rules",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Rewrite: rewrite,
-			Paths:   []string{"app/server"},
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
 			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
 				"app/server/BUILD.plz": &please.BuildFile{
 					Stmt: []please.Expr{
@@ -383,11 +380,10 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "supports projects with no module name",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   "",
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
-			Parse:   t.WithThirdPartyGo(nil),
+			Gosrc: gosrc,
+			Gopkg: "",
+			Paths: []string{"app"},
+			Parse: t.WithThirdPartyGo(nil),
 			ImportDir: map[string]*golang.Package{
 				"app": &golang.Package{
 					Name:    "main",
@@ -423,10 +419,9 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "manages multiple go_library and go_test rules in one build file",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app"},
 			ImportDir: map[string]*golang.Package{
 				"app": &golang.Package{
 					Name:         "app",
@@ -528,10 +523,9 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "allows internal go_test to depend on go_library without go import",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app"},
 			ImportDir: map[string]*golang.Package{
 				"app": &golang.Package{
 					Name:        "main",
@@ -595,13 +589,12 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "allows unresolved dependencies when configured",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
-			Parse:   nil,
-			Config: map[string]*filesystem.Config{
-				"app": &filesystem.Config{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app"},
+			Parse: nil,
+			Config: map[string]wollemi.Config{
+				"app": wollemi.Config{
 					AllowUnresolvedDependency: optional.BoolValue(true),
 				},
 			},
@@ -632,10 +625,9 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "uses go_library import_path when resolving dependencies",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app"},
 			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
 				"third_party/go/github.com/spf13/cobra/BUILD.plz": &please.BuildFile{
 					Stmt: []please.Expr{
@@ -675,18 +667,17 @@ func (t *ServiceSuite) TestService_GoFormat() {
 			},
 		},
 	}, { // TEST_CASE ------------------------------------------------------------
-		Title: "generates go rules with explicit sources when configured",
+		Title: "creates go rules with explicit sources when configured",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app/..."},
-			Rewrite: rewrite,
-			Parse:   t.WithThirdPartyGo(nil),
-			Config: map[string]*filesystem.Config{
-				"app": &filesystem.Config{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
+			Parse: t.WithThirdPartyGo(nil),
+			Config: map[string]wollemi.Config{
+				"app": wollemi.Config{
 					ExplicitSources: optional.BoolValue(true),
 				},
-				"app/server": &filesystem.Config{
+				"app/server": wollemi.Config{
 					ExplicitSources: optional.BoolValue(true),
 				},
 			},
@@ -750,15 +741,14 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "manages go rules with explicit sources when configured",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app/..."},
-			Rewrite: rewrite,
-			Config: map[string]*filesystem.Config{
-				"app": &filesystem.Config{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
+			Config: map[string]wollemi.Config{
+				"app": wollemi.Config{
 					ExplicitSources: optional.BoolValue(true),
 				},
-				"app/server": &filesystem.Config{
+				"app/server": wollemi.Config{
 					ExplicitSources: optional.BoolValue(true),
 				},
 			},
@@ -846,10 +836,9 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}, { // TEST_CASE ------------------------------------------------------------
 		Title: "deletes internal go_test rules that lack source test files",
 		Data: &GoFormatTestData{
-			Gosrc:   gosrc,
-			Gopkg:   gopkg,
-			Paths:   []string{"app"},
-			Rewrite: rewrite,
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app"},
 			ImportDir: map[string]*golang.Package{
 				"app": &golang.Package{
 					Name:    "main",
@@ -892,7 +881,115 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "does not create missing go rules when configured",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
+			Config: map[string]wollemi.Config{
+				"app/cmd": wollemi.Config{
+					Gofmt: wollemi.Gofmt{
+						Create: []string{},
+					},
+				},
+			},
+			ImportDir: map[string]*golang.Package{
+				"app/cmd": &golang.Package{
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": []string{"github.com/spf13/cobra"},
+					},
+				},
+			},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"cmd/main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			}),
+			Write: map[string]*please.BuildFile{
+				"app/cmd/BUILD.plz": &please.BuildFile{},
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"cmd/main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "overrides filesystem package config gofmt create using ctl config",
+		Config: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Create: []string{},
+			},
+		},
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
+			ImportDir: map[string]*golang.Package{
+				"app/cmd": &golang.Package{
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": []string{"github.com/spf13/cobra"},
+					},
+				},
+			},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"cmd/main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			}),
+			Write: map[string]*please.BuildFile{
+				"app/cmd/BUILD.plz": &please.BuildFile{},
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"cmd/main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
+		focus := ""
+
+		if !regexp.MustCompile(focus).MatchString(tt.Title) {
+			continue
+		}
+
 		t.Run(tt.Title, func(t *T) {
 			write := make(chan please.File, 1000)
 
@@ -900,7 +997,7 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 			wollemi := t.New(tt.Data.Gosrc, tt.Data.Gopkg)
 
-			require.NoError(t, wollemi.GoFormat(tt.Data.Rewrite, tt.Data.Paths))
+			require.NoError(t, wollemi.GoFormat(tt.Config, tt.Data.Paths))
 			close(write)
 
 			for have := range write {
@@ -1037,17 +1134,8 @@ func (t *ServiceSuite) MockGoFormat(data *GoFormatTestData, write chan please.Fi
 		})
 
 	t.filesystem.EXPECT().Config(any).AnyTimes().
-		DoAndReturn(func(path string) *filesystem.Config {
-			config, ok := data.Config[path]
-			if !ok {
-				t.Errorf("unexpected call to filesystem config: %s", path)
-			}
-
-			if config == nil {
-				config = &filesystem.Config{}
-			}
-
-			return config
+		DoAndReturn(func(path string) wollemi.Config {
+			return data.Config[path]
 		})
 
 	t.please.EXPECT().NewRule(any, any).AnyTimes().DoAndReturn(please.NewRule)
@@ -1059,9 +1147,8 @@ func (t *ServiceSuite) MockGoFormat(data *GoFormatTestData, write chan please.Fi
 type GoFormatTestData struct {
 	Gosrc     string
 	Gopkg     string
-	Rewrite   bool
 	Paths     []string
-	Config    map[string]*filesystem.Config
+	Config    map[string]wollemi.Config
 	ImportDir map[string]*golang.Package
 	IsGoroot  map[string]bool
 	Lstat     map[string]*FileInfo
@@ -1098,7 +1185,7 @@ func getFileImports(files []string, fileImports map[string][]string) []string {
 
 func (d *GoFormatTestData) Prepare() {
 	if d.Config == nil {
-		d.Config = make(map[string]*filesystem.Config)
+		d.Config = make(map[string]wollemi.Config)
 	}
 
 	if d.ImportDir == nil {
@@ -1193,7 +1280,7 @@ func (d *GoFormatTestData) Prepare() {
 
 		for ; dir != "." && dir != "/"; dir = filepath.Dir(dir) {
 			if _, ok := d.Config[dir]; !ok {
-				d.Config[dir] = &filesystem.Config{}
+				d.Config[dir] = wollemi.Config{}
 			}
 
 			// Define stat info for undefined parent directory.

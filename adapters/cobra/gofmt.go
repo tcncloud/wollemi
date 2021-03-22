@@ -4,10 +4,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tcncloud/wollemi/ports/ctl"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
 
 func GoFmtCmd(app ctl.Application) *cobra.Command {
-	var rewrite bool
+	config := wollemi.Config{}
+
+	rewrite := config.Gofmt.GetRewrite()
+	create := config.Gofmt.GetCreate()
 
 	cmd := &cobra.Command{
 		Use:   "gofmt [path...]",
@@ -77,12 +81,20 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 				return err
 			}
 
-			return wollemi.GoFormat(rewrite, args)
+			if cmd.Flags().Changed("rewrite") {
+				config.Gofmt.Rewrite = &rewrite
+			}
+
+			if cmd.Flags().Changed("create") {
+				config.Gofmt.Create = create
+			}
+
+			return wollemi.GoFormat(config, args)
 		},
 	}
 
-	cmd.Flags().BoolVar(&rewrite, "rewrite", true, "Allow rewriting of build files")
-
+	cmd.Flags().BoolVar(&rewrite, "rewrite", rewrite, "allow rewriting of build files")
+	cmd.Flags().StringSliceVar(&create, "create", create, "allow missing rule kinds to be created")
 
 	return cmd
 }

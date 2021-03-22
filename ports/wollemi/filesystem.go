@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-
-	"github.com/tcncloud/wollemi/ports/filesystem"
 )
 
 type Filesystem interface {
 	Stat(string) (os.FileInfo, error)
 	Lstat(string) (os.FileInfo, error)
-	Config(string) *filesystem.Config
+	Config(string) Config
 	Walk(string, filepath.WalkFunc) error
 	ReadAll(*bytes.Buffer, string) error
 	ReadDir(string) ([]os.FileInfo, error)

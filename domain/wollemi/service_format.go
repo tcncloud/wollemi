@@ -9,17 +9,19 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tcncloud/wollemi/ports/filesystem"
 	"github.com/tcncloud/wollemi/ports/logging"
 	"github.com/tcncloud/wollemi/ports/please"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
 
 const (
 	BUILD_FILE = "BUILD.plz"
 )
 
-func (this *Service) Format(paths []string) error {
-	return this.GoFormat(false, paths)
+func (this *Service) Format(config wollemi.Config, paths []string) error {
+	config.Gofmt.Rewrite = wollemi.Bool(false)
+
+	return this.GoFormat(config, paths)
 }
 
 func (this *Service) isInternal(path string) bool {
@@ -36,10 +38,11 @@ func (this *Service) isInternal(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-func (this *Service) GoFormat(rewrite bool, paths []string) error {
+func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 	this.gofmt.paths = this.normalizePaths(paths)
+	this.config = config
 
-	log := this.log.WithField("rewrite", rewrite)
+	log := this.log.WithField("rewrite", this.config.Gofmt.GetRewrite())
 	for i, path := range this.gofmt.paths {
 		log = log.WithField(fmt.Sprintf("path[%d]", i), path)
 	}
@@ -63,7 +66,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 
 			for dir := range parse {
 				dir.InRunPath = inRunPath(dir.Path, this.gofmt.paths...)
-				dir.Rewrite = rewrite
+				dir.Rewrite = this.config.Gofmt.GetRewrite()
 
 				nonBlockingSend(collect, this.ParseDir(&buf, dir))
 			}
@@ -231,10 +234,10 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 	get := NewChanFunc(1, 0)
 	gen := NewChanFunc(runtime.NumCPU()-1, 0)
 
-	this.gofmt.getTarget = (func() func(*filesystem.Config, string, bool) (string, string) {
-		var inner func(*filesystem.Config, string, bool, int) (string, string)
+	this.gofmt.getTarget = (func() func(wollemi.Config, string, bool) (string, string) {
+		var inner func(wollemi.Config, string, bool, int) (string, string)
 
-		inner = func(config *filesystem.Config, path string, isFile bool, depth int) (string, string) {
+		inner = func(config wollemi.Config, path string, isFile bool, depth int) (string, string) {
 			if target, ok := config.KnownDependency[path]; ok {
 				return target, path
 			}
@@ -297,7 +300,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 			return inner(config, path, isFile, depth+1)
 		}
 
-		return func(config *filesystem.Config, path string, isFile bool) (string, string) {
+		return func(config wollemi.Config, path string, isFile bool) (string, string) {
 			var target string
 
 			get.RunBlock(func() {
@@ -331,7 +334,7 @@ func (this *Service) GoFormat(rewrite bool, paths []string) error {
 	return nil
 }
 
-func (this *Service) getRuleDeps(files []string, config *filesystem.Config, dir *Directory) ([]string, []string, error) {
+func (this *Service) getRuleDeps(files []string, config wollemi.Config, dir *Directory) ([]string, []string, error) {
 	var imports, resolved, unresolved []string
 
 	for _, name := range files {
@@ -374,7 +377,7 @@ func (this *Service) getRuleDeps(files []string, config *filesystem.Config, dir 
 	return resolved, unresolved, nil
 }
 
-func (this *Service) getVisibility(config *filesystem.Config, path string) string {
+func (this *Service) getVisibility(config wollemi.Config, path string) string {
 	if config.DefaultVisibility != "" {
 		return config.DefaultVisibility
 	}
@@ -396,7 +399,7 @@ func (this *Service) getVisibility(config *filesystem.Config, path string) strin
 	return "PUBLIC"
 }
 
-func (this *Service) getRuleSrcs(dir *Directory, config *filesystem.Config, srcFiles []string) []string {
+func (this *Service) getRuleSrcs(dir *Directory, config wollemi.Config, srcFiles []string) []string {
 	srcs := make([]string, 0, len(srcFiles))
 
 	for _, name := range srcFiles {
@@ -427,7 +430,7 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 		return
 	}
 
-	config := this.filesystem.Config(dir.Path)
+	config := this.filesystem.Config(dir.Path).Merge(this.config)
 
 	filesByRule := make(map[string][]string)
 	rulesByFile := make(map[string][]string)
@@ -614,7 +617,7 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 	})
 
 	// ---------------------------------------------------------------------------
-	// Generate missing go rules in this directory.
+	// Create missing go rules in this directory.
 
 	for _, kind := range []string{"go_library", "go_test"} {
 		var pkgFiles []string
@@ -649,6 +652,10 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 				include = []string{"*.go"}
 				external = false
 			}
+		}
+
+		if !inStrings(config.Gofmt.GetCreate(), kind) {
+			continue
 		}
 
 		log := log.WithField("build_rule", rule.Name())

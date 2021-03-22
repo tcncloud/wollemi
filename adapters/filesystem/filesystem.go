@@ -9,21 +9,19 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/tcncloud/wollemi/ports/filesystem"
 	"github.com/tcncloud/wollemi/ports/logging"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
-
-type Config = filesystem.Config
 
 func NewFilesystem(log logging.Logger) *Filesystem {
 	return &Filesystem{
-		configs: make(map[string]*filesystem.Config),
+		configs: make(map[string]wollemi.Config),
 		log:     log,
 	}
 }
 
 type Filesystem struct {
-	configs map[string]*filesystem.Config
+	configs map[string]wollemi.Config
 	log     logging.Logger
 	mu      sync.Mutex
 }
@@ -71,7 +69,7 @@ func (*Filesystem) Walk(root string, walkFn filepath.WalkFunc) error {
 	return filepath.Walk(root, walkFn)
 }
 
-func (this *Filesystem) Config(path string) *filesystem.Config {
+func (this *Filesystem) Config(path string) wollemi.Config {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 
@@ -80,7 +78,7 @@ func (this *Filesystem) Config(path string) *filesystem.Config {
 		return config
 	}
 
-	config = &filesystem.Config{}
+	config = wollemi.Config{}
 	dirs := strings.Split(path, "/")
 
 	var buf bytes.Buffer
@@ -98,8 +96,8 @@ func (this *Filesystem) Config(path string) *filesystem.Config {
 
 		err := this.ReadAll(&buf, filepath.Join(path, ".wollemi.json"))
 		if err == nil {
-			tmp := &filesystem.Config{}
-			if err := json.Unmarshal(buf.Bytes(), tmp); err != nil {
+			tmp := wollemi.Config{}
+			if err := json.Unmarshal(buf.Bytes(), &tmp); err != nil {
 				log.WithError(err).Warn("could not unmarshal json")
 
 				continue

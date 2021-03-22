@@ -2,6 +2,7 @@ package ctl
 
 import (
 	"github.com/tcncloud/wollemi/ports/logging"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
 
 type Application interface {
@@ -10,8 +11,8 @@ type Application interface {
 }
 
 type Wollemi interface {
-	Format([]string) error
-	GoFormat(bool, []string) error
+	Format(wollemi.Config, []string) error
+	GoFormat(wollemi.Config, []string) error
 	GoPkgPath(...string) string
 	GoSrcPath(...string) string
 	SymlinkList(string, bool, bool, []string, []string)
