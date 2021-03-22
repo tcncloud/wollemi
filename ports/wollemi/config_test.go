@@ -28,6 +28,11 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
 				Rewrite: wollemi.Bool(true),
 				Create:  []string{"go_library", "go_test"},
 				Manage:  []string{"go_binary", "go_test"},
+				Mapped: map[string]string{
+					"go_binary":  "go_custom_binary",
+					"go_library": "go_library",
+					"go_test":    "go_custom_test",
+				},
 			},
 		},
 		Data: `{
@@ -40,7 +45,11 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
       "gofmt": {
         "rewrite": true,
         "create": ["go_library", "go_test"],
-        "manage": ["go_binary", "go_test"]
+        "manage": ["go_binary", "go_test"],
+        "mapped": {
+          "go_binary": "go_custom_binary",
+          "go_test": "go_custom_test"
+        }
       }
     }`,
 	}, {
@@ -97,6 +106,18 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
 		Want: wollemi.Config{
 			Gofmt: wollemi.Gofmt{
 				Manage: []string{"go_binary", "go_library", "go_test", "go_custom_binary"},
+			},
+		},
+	}, {
+		Title: "unmarshals json config when gofmt mapped set to none",
+		Data:  `{"gofmt":{"mapped":"none"}}`,
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Mapped: map[string]string{
+					"go_binary":  "go_binary",
+					"go_library": "go_library",
+					"go_test":    "go_test",
+				},
 			},
 		},
 	}} {
@@ -214,6 +235,46 @@ func TestConfig_Merge(t *testing.T) {
 				"aaa": "bbb",
 				"ccc": "ddd",
 				"eee": "fff",
+			},
+		},
+	}, {
+		Name: "merged gofmt mapped is lhs when rhs is null",
+		Lhs: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Mapped: map[string]string{
+					"go_library": "go_library",
+				},
+			},
+		},
+		Rhs: wollemi.Config{},
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Mapped: map[string]string{
+					"go_library": "go_library",
+				},
+			},
+		},
+	}, {
+		Name: "merged gofmt mapped is rhs when rhs is non null",
+		Lhs: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Mapped: map[string]string{
+					"go_library": "go_library",
+				},
+			},
+		},
+		Rhs: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Mapped: map[string]string{
+					"go_binary": "go_binary",
+				},
+			},
+		},
+		Want: wollemi.Config{
+			Gofmt: wollemi.Gofmt{
+				Mapped: map[string]string{
+					"go_binary": "go_binary",
+				},
 			},
 		},
 	}} {

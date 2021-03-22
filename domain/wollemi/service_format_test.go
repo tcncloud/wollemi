@@ -1052,6 +1052,61 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "maps created rule kinds when configured",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/..."},
+			Config: map[string]wollemi.Config{
+				"app": wollemi.Config{
+					ExplicitSources: optional.BoolValue(true),
+					Gofmt: wollemi.Gofmt{
+						Mapped: map[string]string{
+							"go_binary": "go_custom_binary",
+							"go_test":   "go_custom_test",
+						},
+					},
+				},
+			},
+			ImportDir: map[string]*golang.Package{
+				"app": &golang.Package{
+					Name:        "main",
+					GoFiles:     []string{"main.go"},
+					TestGoFiles: []string{"main_test.go"},
+					GoFileImports: map[string][]string{
+						"main.go": []string{"github.com/spf13/cobra"},
+						"main_test.go": []string{
+							"github.com/stretchr/testify",
+							"testing",
+						},
+					},
+				},
+			},
+			Parse: t.WithThirdPartyGo(nil),
+			Write: map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_custom_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"//app/..."}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+						please.NewCallExpr("go_custom_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "test"),
+							please.NewAssignExpr("=", "srcs", []string{"main.go", "main_test.go"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+								"//third_party/go/github.com/stretchr:testify",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 

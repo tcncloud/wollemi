@@ -18,9 +18,10 @@ type Config struct {
 }
 
 type Gofmt struct {
-	Rewrite *bool  `json:"rewrite,omitempty"`
-	Create  create `json:"create,omitempty"`
-	Manage  manage `json:"manage,omitempty"`
+	Rewrite *bool       `json:"rewrite,omitempty"`
+	Create  gofmtCreate `json:"create,omitempty"`
+	Manage  gofmtManage `json:"manage,omitempty"`
+	Mapped  gofmtMapped `json:"mapped,omitempty"`
 }
 
 func (gofmt *Gofmt) GetRewrite() bool {
@@ -45,6 +46,16 @@ func (gofmt *Gofmt) GetManage() []string {
 	}
 
 	return []string{"go_binary", "go_library", "go_test"}
+}
+
+func (gofmt *Gofmt) GetMapped(kind string) string {
+	if gofmt != nil && gofmt.Mapped != nil {
+		if kind, ok := gofmt.Mapped[kind]; ok {
+			return kind
+		}
+	}
+
+	return kind
 }
 
 func (this Config) Merge(that Config) Config {
@@ -97,12 +108,16 @@ func (this Config) Merge(that Config) Config {
 		merge.Gofmt.Manage = v
 	}
 
+	if v := that.Gofmt.Mapped; v != nil {
+		merge.Gofmt.Mapped = v
+	}
+
 	return merge
 }
 
-type create []string
+type gofmtCreate []string
 
-func (list *create) UnmarshalJSON(buf []byte) error {
+func (list *gofmtCreate) UnmarshalJSON(buf []byte) error {
 	err := json.Unmarshal(buf, (*[]string)(list))
 	if err != nil {
 		s, err := strconv.Unquote(string(buf))
@@ -112,7 +127,6 @@ func (list *create) UnmarshalJSON(buf []byte) error {
 				*list = (*Gofmt)(nil).GetCreate()
 			case "off":
 				*list = []string{}
-			default:
 			}
 		}
 	}
@@ -120,9 +134,9 @@ func (list *create) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
-type manage []string
+type gofmtManage []string
 
-func (list *manage) UnmarshalJSON(buf []byte) error {
+func (list *gofmtManage) UnmarshalJSON(buf []byte) error {
 	var gofmt *Gofmt
 
 	err := json.Unmarshal(buf, (*[]string)(list))
@@ -156,6 +170,32 @@ func (list *manage) UnmarshalJSON(buf []byte) error {
 	}
 
 	return nil
+}
+
+type gofmtMapped map[string]string
+
+func (mapped *gofmtMapped) UnmarshalJSON(buf []byte) error {
+	tmp := make(map[string]string)
+	err := json.Unmarshal(buf, &tmp)
+
+	if err != nil {
+		s, unquoteErr := strconv.Unquote(string(buf))
+		if unquoteErr == nil && s == "none" {
+			err = nil
+		}
+	}
+
+	*mapped = map[string]string{
+		"go_binary":  "go_binary",
+		"go_library": "go_library",
+		"go_test":    "go_test",
+	}
+
+	for k, v := range tmp {
+		(*mapped)[k] = v
+	}
+
+	return err
 }
 
 func inStrings(from []string, value string) bool {

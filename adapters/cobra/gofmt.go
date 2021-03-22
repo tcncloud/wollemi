@@ -10,9 +10,9 @@ import (
 func GoFmtCmd(app ctl.Application) *cobra.Command {
 	config := wollemi.Config{}
 
-	rewrite := config.Gofmt.GetRewrite()
 	create := config.Gofmt.GetCreate()
 	manage := config.Gofmt.GetManage()
+	mapped := map[string]string(nil)
 
 	cmd := &cobra.Command{
 		Use:   "gofmt [path...]",
@@ -82,10 +82,6 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 				return err
 			}
 
-			if cmd.Flags().Changed("rewrite") {
-				config.Gofmt.Rewrite = &rewrite
-			}
-
 			if cmd.Flags().Changed("create") {
 				config.Gofmt.Create = create
 			}
@@ -94,13 +90,17 @@ func GoFmtCmd(app ctl.Application) *cobra.Command {
 				config.Gofmt.Manage = manage
 			}
 
+			if cmd.Flags().Changed("mapped") {
+				config.Gofmt.Mapped = mapped
+			}
+
 			return wollemi.GoFormat(config, args)
 		},
 	}
 
-	cmd.Flags().BoolVar(&rewrite, "rewrite", rewrite, "allow rewriting of build files")
-	cmd.Flags().StringSliceVar(&create, "create", create, "allow missing rule kinds to be created")
-	cmd.Flags().StringSliceVar(&manage, "manage", manage, "allow existing rule kinds to be managed")
+	cmd.Flags().StringSliceVar(&create, "create", create, "rule kinds to be created when not found")
+	cmd.Flags().StringSliceVar(&manage, "manage", manage, "rule kinds to be managed")
+	cmd.Flags().StringToStringVar(&mapped, "mapped", nil, "rule kinds to be mapped")
 
 	return cmd
 }

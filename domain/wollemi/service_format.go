@@ -486,7 +486,7 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 		var newFiles []string
 		var external bool
 
-		kind := rule.Kind()
+		kind := config.Gofmt.GetMapped(rule.Kind())
 
 		if !inStrings(config.Gofmt.GetManage(), kind) {
 			return
@@ -637,6 +637,7 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 			}
 
 			path := filepath.Join(this.wd, dir.Path)
+			kind := config.Gofmt.GetMapped(kind)
 			rule = this.please.NewRule(kind, filepath.Base(path))
 			include, exclude = []string{"*.go"}, []string{"*_test.go"}
 		case "go_test":
@@ -645,6 +646,7 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 			}
 
 			pkgFiles = dir.Gopkg.XTestGoFiles
+			kind := config.Gofmt.GetMapped(kind)
 			rule = this.please.NewRule(kind, "test")
 			include = []string{"*_test.go"}
 			external = true
