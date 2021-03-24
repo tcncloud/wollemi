@@ -29,13 +29,25 @@ func (this *Service) isInternal(path string) bool {
 		return true
 	}
 
-	info, err := this.filesystem.Stat(path)
+	for _, path := range []string{path, filepath.Dir(path)} {
+		if path == "." {
+			continue
+		}
 
-	if err != nil && !os.IsNotExist(err) {
-		this.log.WithField("path", path).Warnf("could not stat: %v", err)
+		for _, prefix := range []string{"", "plz-out/gen"} {
+			info, err := this.filesystem.Stat(filepath.Join(prefix, path))
+
+			if err != nil && !os.IsNotExist(err) {
+				this.log.WithField("path", path).Warnf("could not stat: %v", err)
+			}
+
+			if err == nil && info.IsDir() {
+				return true
+			}
+		}
 	}
 
-	return err == nil && info.IsDir()
+	return false
 }
 
 func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
@@ -180,27 +192,6 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 
 			dir.Build.GetRules(func(rule please.Rule) {
 				switch rule.Kind() {
-				case "go_copy", "go_mock", "go_library", "grpc_library", "proto_library":
-					name := rule.AttrString("name")
-
-					target, path := dir.Path, dir.Path
-					if path == "." {
-						target = fmt.Sprintf(":%s", name)
-					} else if filepath.Base(path) != name {
-						path = filepath.Join(path, name)
-						target += ":" + name
-					}
-
-					importPath := rule.AttrString("import_path")
-					if importPath != "" {
-						external[importPath] = append(external[path], "//"+target)
-					} else if !strings.HasPrefix(path, "third_party/go/") {
-						internal[filepath.Join(this.gopkg, path)] = "//" + target
-
-						if rule.Kind() == "go_copy" {
-							genfiles[path+".cp.go"] = target
-						}
-					}
 				case "go_get", "go_get_with_sources":
 					get := strings.TrimSuffix(rule.AttrString("get"), "/...")
 					if get == "" {
@@ -223,6 +214,31 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 
 					if get != "" && rule.AttrLiteral("binary") != "True" {
 						external[get] = append(external[get], "//"+target)
+					}
+				default:
+					name := rule.AttrString("name")
+
+					target, path := dir.Path, dir.Path
+					if path == "." {
+						target = fmt.Sprintf(":%s", name)
+					} else if filepath.Base(path) != name {
+						path = filepath.Join(path, name)
+						target += ":" + name
+					}
+
+					importPath := rule.AttrString("import_path")
+					kind := rule.Kind()
+
+					switch {
+					case importPath != "":
+						external[importPath] = append(external[path], "//"+target)
+					case strings.HasPrefix(path, "third_party/go/"):
+					case kind != "go_test":
+						internal[filepath.Join(this.gopkg, path)] = "//" + target
+
+						if rule.Kind() == "go_copy" {
+							genfiles[path+".cp.go"] = target
+						}
 					}
 				}
 			})
@@ -251,6 +267,10 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 			}
 
 			if depth == 0 {
+				if target, ok := internal[path]; ok {
+					return target, path
+				}
+
 				if _, ok := directories[path]; ok {
 					return fmt.Sprintf("//%s", path), path
 				}
@@ -264,10 +284,6 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 								return fmt.Sprintf("//%s:%s", dir.Path, name), dir.Path
 							}
 						}
-					}
-
-					if target, ok := internal[path]; ok {
-						return target, path
 					}
 
 					if path == this.gopkg {

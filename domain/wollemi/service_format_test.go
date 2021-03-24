@@ -1107,6 +1107,75 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "resolves internal generated grpc libraries",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: "",
+			Paths: []string{"app"},
+			ImportDir: map[string]*golang.Package{
+				"app": &golang.Package{
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": []string{
+							"database/sql",
+							"fmt",
+							"github.com/spf13/cobra",
+							"protos/bar",
+							"protos/foo",
+						},
+					},
+				},
+			},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+					},
+				},
+				"protos/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("grpc_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "foo"),
+							please.NewAssignExpr("=", "srcs", []string{"foo.proto"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/google.golang.org:grpc",
+							}),
+						}),
+						please.NewCallExpr("grpc_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "bar"),
+							please.NewAssignExpr("=", "srcs", []string{"bar.proto"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/google.golang.org:grpc",
+							}),
+						}),
+					},
+				},
+			}),
+			Write: map[string]*please.BuildFile{
+				"app/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", []string{"main.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//protos:bar",
+								"//protos:foo",
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 
