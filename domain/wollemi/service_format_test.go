@@ -1176,6 +1176,57 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "supports resolving third party go_module rules",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
+			Parse: t.WithThirdPartyGoModules(map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+					},
+				},
+			}),
+			ImportDir: map[string]*golang.Package{
+				"app/server": &golang.Package{
+					GoFiles: []string{"server.go"},
+					GoFileImports: map[string][]string{
+						"server.go": []string{
+							"database/sql",
+							"encoding/json",
+							"github.com/golang/protobuf/proto/ptypes/wrappers",
+							"github.com/example/app/protos",
+							"google.golang.org/grpc",
+							"google.golang.org/grpc/credentials",
+							"strconv",
+							"strings",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//app/protos",
+								"//third_party/go:github.com__golang__protobuf",
+								"//third_party/go:google.golang.org__grpc",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 
@@ -1509,7 +1560,68 @@ func (d *GoFormatTestData) Prepare() {
 }
 
 // WithThirdPartyGo merges the provided extra build files into a default set of
-// third party go build files.
+// third party go_module rules.
+func (t *ServiceSuite) WithThirdPartyGoModules(extra map[string]*please.BuildFile) map[string]*please.BuildFile {
+	files := map[string]*please.BuildFile{
+		"third_party/go/BUILD.plz": &please.BuildFile{
+			Stmt: []please.Expr{
+				please.NewCallExpr("go_module", []please.Expr{
+					please.NewAssignExpr("=", "name", "github.com__spf13__cobra"),
+					please.NewAssignExpr("=", "module", "github.com/spf13/cobra"),
+					please.NewAssignExpr("=", "install", []string{"."}),
+					please.NewAssignExpr("=", "version", "v1.0.0"),
+				}),
+				please.NewCallExpr("go_module", []please.Expr{
+					please.NewAssignExpr("=", "name", "github.com__spf13__pflag"),
+					please.NewAssignExpr("=", "module", "github.com/spf13/pflag"),
+					please.NewAssignExpr("=", "install", []string{"."}),
+					please.NewAssignExpr("=", "version", "v1.0.5"),
+				}),
+				please.NewCallExpr("go_module", []please.Expr{
+					please.NewAssignExpr("=", "name", "github.com__golang__protobuf"),
+					please.NewAssignExpr("=", "module", "github.com/golang/protobuf"),
+					please.NewAssignExpr("=", "install", []string{"proto/ptypes/wrappers"}),
+					please.NewAssignExpr("=", "version", "v1.3.2"),
+				}),
+				please.NewCallExpr("go_module", []please.Expr{
+					please.NewAssignExpr("=", "name", "github.com__golang__mock"),
+					please.NewAssignExpr("=", "module", "github.com/golang/mock"),
+					please.NewAssignExpr("=", "version", "v1.3.2"),
+					please.NewAssignExpr("=", "install", []string{
+						"mockgen/model",
+						"gomock",
+					}),
+				}),
+				please.NewCallExpr("go_module", []please.Expr{
+					please.NewAssignExpr("=", "name", "github.com__stretchr__testify"),
+					please.NewAssignExpr("=", "module", "github.com/stretchr/testify"),
+					please.NewAssignExpr("=", "version", "v1.4.0"),
+					please.NewAssignExpr("=", "install", []string{
+						"assert",
+						"require",
+						"vendor/github.com/davecgh/go-spew/spew",
+						"vendor/github.com/pmezard/go-difflib/difflib",
+					}),
+				}),
+				please.NewCallExpr("go_module", []please.Expr{
+					please.NewAssignExpr("=", "name", "google.golang.org__grpc"),
+					please.NewAssignExpr("=", "module", "google.golang.org/grpc"),
+					please.NewAssignExpr("=", "install", []string{".", "credentials"}),
+					please.NewAssignExpr("=", "version", "v1.26.0"),
+				}),
+			},
+		},
+	}
+
+	for k, v := range extra {
+		files[k] = v
+	}
+
+	return files
+}
+
+// WithThirdPartyGo merges the provided extra build files into a default set of
+// third party go_get rules.
 func (t *ServiceSuite) WithThirdPartyGo(extra map[string]*please.BuildFile) map[string]*please.BuildFile {
 	files := map[string]*please.BuildFile{
 		"third_party/go/github.com/spf13/BUILD.plz": &please.BuildFile{

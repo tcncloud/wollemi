@@ -118,15 +118,10 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 				} {
 				Imports:
 					for _, godep := range imports {
-						var prefix bool
-
 						goroot, ok := this.gofmt.isGoroot[godep]
+
 						if !ok {
-							if prefix = this.isInternal(godep); prefix {
-								goroot = false
-							} else {
-								goroot = this.golang.IsGoroot(godep)
-							}
+							goroot = this.golang.IsGoroot(godep)
 
 							this.gofmt.isGoroot[godep] = goroot
 						}
@@ -137,7 +132,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 
 						path := godep
 
-						if prefix || this.isInternal(path) {
+						if this.isInternal(path) {
 							path = strings.TrimPrefix(path, this.gopkg+"/")
 						} else {
 							path = filepath.Join("third_party/go", path)
@@ -192,6 +187,23 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 
 			dir.Build.GetRules(func(rule please.Rule) {
 				switch rule.Kind() {
+				case "go_module":
+					module := rule.AttrString("module")
+					target := &please.Target{
+						Name: rule.AttrString("name"),
+						Path: dir.Path,
+					}
+
+					for _, install := range rule.AttrStrings("install") {
+						install = strings.TrimSuffix(install, "/...")
+						path := module
+
+						if install != "." {
+							path = filepath.Join(path, install)
+						}
+
+						external[path] = append(external[path], target.String())
+					}
 				case "go_get", "go_get_with_sources":
 					get := strings.TrimSuffix(rule.AttrString("get"), "/...")
 					if get == "" {
@@ -201,11 +213,9 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 						}
 					}
 
-					name := rule.AttrString("name")
-
-					target := dir.Path
-					if filepath.Base(dir.Path) != name {
-						target += ":" + name
+					target := &please.Target{
+						Name: rule.AttrString("name"),
+						Path: dir.Path,
 					}
 
 					if rule.Kind() == "go_get_with_sources" {
@@ -213,7 +223,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 					}
 
 					if get != "" && rule.AttrLiteral("binary") != "True" {
-						external[get] = append(external[get], "//"+target)
+						external[get] = append(external[get], target.String())
 					}
 				default:
 					name := rule.AttrString("name")
