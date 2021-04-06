@@ -641,6 +641,8 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 
 		if len(resolved) > 0 {
 			rule.SetAttr("deps", please.Strings(resolved...))
+		} else {
+			rule.DelAttr("deps")
 		}
 	})
 

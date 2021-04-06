@@ -1227,6 +1227,53 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "deletes go rule deps attribute when no dependencies required",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
+			Parse: t.WithThirdPartyGoModules(map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//app/protos",
+								"//third_party/go/github.com/golang:protobuf",
+								"//third_party/go/google.golang.org:grpc",
+							}),
+						}),
+					},
+				},
+			}),
+			ImportDir: map[string]*golang.Package{
+				"app/server": &golang.Package{
+					GoFiles: []string{"server.go"},
+					GoFileImports: map[string][]string{
+						"server.go": []string{
+							"database/sql",
+							"encoding/json",
+							"strconv",
+							"strings",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 
