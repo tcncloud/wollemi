@@ -106,6 +106,12 @@ modified file.
 autocmd BufWritePost *.go silent exec '!wollemi --log fatal gofmt' shellescape(expand('%:h'), 1)
 ```
 
+### VS Code 
+
+Thanks to @jamesjarvis wollemi have a VS Code plugin now https://github.com/jamesjarvis/vs-wollemi
+VSCode marketplace link: https://marketplace.visualstudio.com/items?itemName=jamesjarvis.vs-wollemi
+
+
 ---
 
 ## Commands
