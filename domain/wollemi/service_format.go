@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/tcncloud/wollemi/domain/optional"
 	"github.com/tcncloud/wollemi/ports/logging"
 	"github.com/tcncloud/wollemi/ports/please"
 	"github.com/tcncloud/wollemi/ports/wollemi"
@@ -236,6 +237,8 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 						target += ":" + name
 					}
 
+					target = strings.TrimSuffix(target, ":")
+
 					importPath := rule.AttrString("import_path")
 					kind := rule.Kind()
 
@@ -246,7 +249,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 					case kind != "go_test":
 						internal[filepath.Join(this.gopkg, path)] = "//" + target
 
-						if rule.Kind() == "go_copy" {
+						if kind == "go_copy" {
 							genfiles[path+".cp.go"] = target
 						}
 					}
@@ -346,7 +349,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 		dir := dir
 
 		gen.Run(func() {
-			this.formatDirectory(log, dir)
+			this.formatDir(log, dir)
 
 			if err := this.please.Write(dir.Build); err != nil {
 				log.WithError(err).Warn("could not write")
@@ -397,8 +400,6 @@ func (this *Service) getRuleDeps(files []string, config wollemi.Config, dir *Dir
 			resolved = appendUniqString(resolved, target.Rel(dir.Path))
 		}
 	}
-
-	please.SortDeps(resolved)
 
 	return resolved, unresolved, nil
 }
@@ -451,301 +452,377 @@ func (this *Service) getRuleSrcs(dir *Directory, config wollemi.Config, srcFiles
 	return srcs
 }
 
-func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
+func (this *Service) formatDir(log logging.Logger, dir *Directory) {
 	if !dir.Ok || !dir.Rewrite || dir.Gopkg == nil {
 		return
 	}
 
 	config := this.filesystem.Config(dir.Path).Merge(this.config)
 
-	filesByRule := make(map[string][]string)
-	rulesByFile := make(map[string][]string)
+	log.WithFields(logging.Fields{
+		"config":    config,
+		"directory": dir,
+	}).Debug("formatting")
+
+	consumer := &fileConsumer{
+		Rules: make(map[string][]string),
+		Files: make(map[string][]string),
+		Dir:   dir,
+	}
+
+	var managed []please.Rule
 
 	dir.Build.GetRules(func(rule please.Rule) {
-		files := getSrcFilesFromExpr(rule.Attr("srcs"), dir)
+		kind := config.Gofmt.GetMapped(rule.Kind())
 
-		for i := 0; i < len(files); i++ {
-			name := files[i]
-
-			switch {
-			case filepath.Ext(name) != ".go":
-				// Ignore non golang source files.
-			case strings.Contains(name, "/"):
-				// Ignore golang source files outside of this directory.
-			default:
-				if _, ok := dir.Files[name]; !ok {
-					// This golang source file does not exist so it should be stripped
-					// from this rule's source list.
-
-					if i+1 < len(files) {
-						copy(files[i:], files[i+1:])
-					}
-
-					files = files[:len(files)-1]
-					i--
-				}
-			}
+		if inStrings(config.Gofmt.GetManage(), kind) {
+			managed = append(managed, rule)
 		}
 
-		filesByRule[rule.Name()] = files
-
-		for _, name := range files {
-			rulesByFile[name] = appendUniqString(rulesByFile[name], rule.Name())
-		}
+		consumer.Update(rule)
 	})
+
+	sortManagedRules(config, managed)
 
 	// ---------------------------------------------------------------------------
 	// Manage existing go rules in this directory.
 
-	dir.Build.GetRules(func(rule please.Rule) {
-		for _, comment := range rule.Comment().Before {
-			token := strings.TrimSpace(comment.Token)
+ManageRules:
+	for {
+		for i, rule := range managed {
+			for _, comment := range rule.Comment().Before {
+				token := strings.TrimSpace(comment.Token)
 
-			if strings.EqualFold(token, "# wollemi:keep") {
-				return // TODO: write unit test for this.
-			}
-		}
-
-		log := log.WithField("build_rule", rule.Name())
-
-		var pkgFiles []string
-		var newFiles []string
-		var external bool
-
-		kind := config.Gofmt.GetMapped(rule.Kind())
-
-		if !inStrings(config.Gofmt.GetManage(), kind) {
-			return
-		}
-
-		switch kind {
-		case "go_binary", "go_library":
-			pkgFiles = dir.Gopkg.GoFiles
-		case "go_test":
-			pkgFiles = dir.Gopkg.XTestGoFiles
-			external = true
-
-			if len(pkgFiles) == 0 {
-				pkgFiles = append(dir.Gopkg.GoFiles, dir.Gopkg.TestGoFiles...)
-				external = false
-			}
-		}
-
-		var ambiguous bool
-
-		srcFiles := filesByRule[rule.Name()]
-
-		for _, name := range pkgFiles {
-			if inStrings(srcFiles, name) {
-				continue
+				if strings.EqualFold(token, "# wollemi:keep") {
+					return // TODO: write unit test for this.
+				}
 			}
 
-			if rulesByFile[name] == nil {
-				newFiles = append(newFiles, name)
-				continue
+			log := log.WithFields(logging.Fields{
+				"rule":    rule.Name(),
+				"process": "manage",
+			})
+
+			var pkgFiles []string
+			var deps []string
+
+			kind := config.Gofmt.GetMapped(rule.Kind())
+
+			external := rule.AttrLiteral("external") == "True"
+
+			switch kind {
+			case "go_binary", "go_library":
+				pkgFiles = dir.Gopkg.GoFiles
+			case "go_test":
+				if external {
+					pkgFiles = dir.Gopkg.XTestGoFiles
+				} else {
+					pkgFiles = dir.Gopkg.TestGoFiles
+				}
 			}
 
-			if kind == "go_test" && inStrings(dir.Gopkg.GoFiles, name) {
-				newFiles = append(newFiles, name)
-				continue
+			srcFiles := consumer.Files[rule.Name()]
+
+			// -----------------------------------------------------------------------
+			// Include missing golang package source files unless one or more source
+			// files are being consumed by another rule. Allow exceptions when
+			// internal go_test rules consume non test package sources.
+
+			var ambiguous bool
+
+			for i := 0; !ambiguous && i < len(pkgFiles); i++ {
+				file := pkgFiles[i]
+
+				switch {
+				case len(consumer.Rules[file]) == 0:
+				case inStrings(srcFiles, file):
+				case inStrings(dir.Gopkg.GoFiles, file):
+					if kind == "go_test" {
+						continue
+					}
+
+					for _, name := range consumer.Rules[file] {
+						other := dir.Build.GetRule(name)
+						if other == nil {
+							continue
+						}
+
+						if config.Gofmt.GetMapped(other.Kind()) != "go_test" {
+							ambiguous = true
+							break
+						}
+					}
+				default:
+					ambiguous = true
+				}
 			}
 
-			ambiguous = true
-			break
-		}
-
-		if len(newFiles) > 0 && !ambiguous {
-			for _, name := range newFiles {
-				rulesByFile[name] = appendUniqString(rulesByFile[name], rule.Name())
-			}
-
-			srcFiles = append(srcFiles, newFiles...)
-			newFiles = nil
-
-			sort.Strings(srcFiles)
-		}
-
-		if kind == "go_test" && !external {
-			if len(srcFiles) == len(dir.Gopkg.GoFiles) {
-				sort.Strings(dir.Gopkg.GoFiles)
+			if !ambiguous {
+				srcFiles = appendUniqString(srcFiles, pkgFiles...)
 				sort.Strings(srcFiles)
+			}
 
+			// -----------------------------------------------------------------------
+			// Mark external go_test rule to be removed when it includes no test
+			// source files.
+
+			if kind == "go_test" && !external {
 				tail := len(srcFiles) - 1
+
 				for i := 0; i <= tail; i++ {
-					if srcFiles[i] != dir.Gopkg.GoFiles[i] {
+					if strings.HasSuffix(srcFiles[i], "_test.go") {
 						break
-					}
-
-					if i == tail {
-						// This internal go_test does not include any actual test source
-						// files therefore we are marking it to be deleted.
-						srcFiles = nil
+					} else if i == tail {
+						srcFiles = nil // delete
 					}
 				}
 			}
-		}
 
-		if len(srcFiles) == 0 {
-			log.WithField("build_rule", rule.Name()).
-				WithField("reason", "no source files").
-				Warn("removed")
+			// -----------------------------------------------------------------------
+			// Remove managed build rule when it includes zero source files.
 
-			dir.Build.DelRule(rule.Name())
-			return
-		}
+			if len(srcFiles) == 0 {
+				log.WithField("reason", "no source files").Warn("removed")
 
-		var internal []string
+				rule.DelAttr("srcs")
+				consumer.Update(rule)
 
-		if kind == "go_test" && !external {
-			// Allow internal go_test rule to depend on go_library rule even
-			// though the go code does not. In the case of please this will
-			// just make the pre-compiled go library code available in the
-			// test.
-			for _, dep := range rule.AttrStrings("deps") {
-				target := please.Split(dep)
+				dir.Build.DelRule(rule.Name())
 
-				if target.Path == "" || target.Path == dir.Path {
-					rule := dir.Build.GetRule(target.Name)
+				managed = deleteRulesIndex(managed, i)
 
-					if rule != nil && rule.Kind() == "go_library" {
-						internal = append(internal, fmt.Sprintf(":%s", target.Name))
-						srcFiles = deleteStrings(srcFiles, filesByRule[target.Name]...)
+				continue ManageRules
+			}
+
+			// -----------------------------------------------------------------------
+
+			if kind == "go_test" && !external {
+				// Allow internal go_test rule to depend on go_library rule even
+				// though the go code does not. In the case of please this will
+				// just make the pre-compiled go library code available in the
+				// test.
+				for _, dep := range rule.AttrStrings("deps") {
+					target := please.Split(dep)
+
+					if target.Path == "" || target.Path == dir.Path {
+						rule := dir.Build.GetRule(target.Name)
+
+						if rule != nil && config.Gofmt.GetMapped(rule.Kind()) == "go_library" {
+							deps = append(deps, fmt.Sprintf(":%s", target.Name))
+							srcFiles, _ = deleteStrings(srcFiles, consumer.Files[target.Name]...)
+						}
+
+						if strings.HasSuffix(target.Name, "#lib") {
+							name := target.Name
+
+							name = strings.TrimSuffix(name, "#lib")
+							name = strings.TrimPrefix(name, "_")
+
+							rule := dir.Build.GetRule(name)
+
+							if rule != nil && config.Gofmt.GetMapped(rule.Kind()) == "go_binary" {
+								deps = append(deps, fmt.Sprintf(":%s", target.Name))
+								srcFiles, _ = deleteStrings(srcFiles, consumer.Files[name]...)
+							}
+						}
 					}
 				}
 			}
-		}
 
-		srcs := this.getRuleSrcs(dir, config, srcFiles)
+			_, isExplicitSources := rule.Attr("srcs").(*please.ListExpr)
 
-		resolved, unresolved, err := this.getRuleDeps(srcFiles, config, dir)
-		if err != nil {
-			log.WithError(err).Warn("could not get deps")
-			return
-		}
+			if kind == "go_test" && !isExplicitSources {
+				exclude := dir.Gopkg.XTestGoFiles
 
-		resolved = append(internal, resolved...)
+				if external {
+					exclude = dir.Gopkg.TestGoFiles
+				}
 
-		if len(unresolved) > 0 && !config.AllowUnresolvedDependency.IsTrue() {
-			for _, path := range unresolved {
-				log.WithField("go_import", path).Error("could not resolve go import")
+				srcFiles, isExplicitSources = deleteStrings(srcFiles, exclude...)
 			}
 
-			return
+			if external {
+				if inStrings(dir.Gopkg.TestGoFiles, srcFiles...) {
+					rule.DelAttr("external")
+				}
+			} else {
+				if inStrings(dir.Gopkg.XTestGoFiles, srcFiles...) {
+					rule.SetAttr("external", &please.Ident{Name: "True"})
+				}
+			}
+
+			resolved, unresolved, err := this.getRuleDeps(srcFiles, config, dir)
+			if err != nil {
+				log.WithError(err).Warn("could not get deps")
+				return
+			}
+
+			if len(unresolved) > 0 && !config.AllowUnresolvedDependency.IsTrue() {
+				for _, path := range unresolved {
+					log.WithField("go_import", path).Error("could not resolve go import")
+				}
+
+				return
+			}
+
+			if isExplicitSources || config.ExplicitSources.IsTrue() {
+				srcs := this.getRuleSrcs(dir, config, srcFiles)
+				rule.SetAttr("srcs", please.Strings(srcs...))
+			}
+
+			resolved = append(deps, resolved...)
+
+			if len(resolved) > 0 {
+				please.SortDeps(resolved)
+				rule.SetAttr("deps", please.Strings(resolved...))
+			} else {
+				rule.DelAttr("deps")
+			}
+
+			log.Debug("managed")
+
+			consumer.Update(rule)
 		}
 
-		_, isExplicitSources := rule.Attr("srcs").(*please.ListExpr)
-
-		if isExplicitSources || config.ExplicitSources.IsTrue() {
-			rule.SetAttr("srcs", please.Strings(srcs...))
-		}
-
-		if len(resolved) > 0 {
-			rule.SetAttr("deps", please.Strings(resolved...))
-		} else {
-			rule.DelAttr("deps")
-		}
-	})
+		break
+	}
 
 	// ---------------------------------------------------------------------------
 	// Create missing go rules in this directory.
 
-	for _, kind := range []string{"go_library", "go_test"} {
+CreateRules:
+	for _, x := range []struct {
+		Kind     string
+		External bool
+	}{
+		{Kind: "go_library"},
+		{Kind: "go_test", External: false},
+		{Kind: "go_test", External: true},
+	} {
 		var pkgFiles []string
 		var include []string
 		var exclude []string
 		var rule please.Rule
-		var external bool
+		var deps []string
 
-		switch kind {
-		case "go_library":
+		config := config
+
+		switch {
+		case x.Kind == "go_library":
 			pkgFiles = dir.Gopkg.GoFiles
 
 			if dir.Gopkg.Name == "main" {
-				kind = "go_binary"
+				x.Kind = "go_binary"
 			}
 
-			path := filepath.Join(this.wd, dir.Path)
-			kind := config.Gofmt.GetMapped(kind)
-			rule = this.please.NewRule(kind, filepath.Base(path))
+			rule = this.please.NewRule(
+				config.Gofmt.GetMapped(x.Kind),
+				filepath.Base(filepath.Join(this.wd, dir.Path)),
+			)
+
 			include, exclude = []string{"*.go"}, []string{"*_test.go"}
-		case "go_test":
-			if len(dir.Gopkg.XTestGoFiles)+len(dir.Gopkg.TestGoFiles) == 0 {
-				continue
+		case x.Kind == "go_test" && x.External == false:
+			if len(dir.Gopkg.TestGoFiles) == 0 {
+				continue // No source files so nothing to be done.
+			}
+
+			pkgFiles = dir.Gopkg.TestGoFiles
+
+			if dir.Gopkg.Name == "main" {
+				pkgFiles = append(dir.Gopkg.GoFiles, dir.Gopkg.TestGoFiles...)
+				include = []string{"*.go"}
+			} else {
+				// Attempt to get sources through existing go_library rule.
+				if rule := consumer.GetRule(dir.Gopkg.GoFiles...); rule != nil {
+					if config.Gofmt.GetMapped(rule.Kind()) == "go_library" {
+						// Since there exists exactly one go_library rule which consumes all
+						// non-test source files for this go package it will be included as
+						// a dependency for this internal go_test.
+
+						deps = append(deps, ":"+rule.Name())
+						pkgFiles = dir.Gopkg.TestGoFiles
+						include = []string{"*_test.go"}
+					}
+				}
+			}
+
+			exclude = dir.Gopkg.XTestGoFiles
+			name := "test"
+
+			if len(dir.Gopkg.XTestGoFiles) > 0 {
+				config.ExplicitSources = optional.BoolValue(true)
+				name = "internal_test"
+			}
+
+			rule = this.please.NewRule(config.Gofmt.GetMapped(x.Kind), name)
+		case x.Kind == "go_test" && x.External == true:
+			if len(dir.Gopkg.XTestGoFiles) == 0 {
+				continue // No sources files so nothing to be done.
 			}
 
 			pkgFiles = dir.Gopkg.XTestGoFiles
-			kind := config.Gofmt.GetMapped(kind)
-			rule = this.please.NewRule(kind, "test")
 			include = []string{"*_test.go"}
-			external = true
+			exclude = dir.Gopkg.TestGoFiles
+			name := "test"
 
-			if len(pkgFiles) == 0 {
-				pkgFiles = append(dir.Gopkg.GoFiles, dir.Gopkg.TestGoFiles...)
-				include = []string{"*.go"}
-				external = false
+			if len(dir.Gopkg.TestGoFiles) > 0 {
+				config.ExplicitSources = optional.BoolValue(true)
+				name = "external_test"
 			}
+
+			rule = this.please.NewRule(config.Gofmt.GetMapped(x.Kind), name)
 		}
 
-		if !inStrings(config.Gofmt.GetCreate(), kind) {
+		if !inStrings(config.Gofmt.GetCreate(), x.Kind) {
 			continue
 		}
 
-		log := log.WithField("build_rule", rule.Name())
+		exclude = append(exclude, dir.Gopkg.IgnoredGoFiles...)
 
-		srcFiles := make([]string, 0, len(pkgFiles))
+		log := log.WithFields(logging.Fields{
+			"rule":    rule.Name(),
+			"process": "create",
+		})
 
-		var ambiguous bool
+		for _, file := range pkgFiles {
+			switch {
+			case len(consumer.Rules[file]) == 0:
+			case x.Kind == "go_test" && inStrings(dir.Gopkg.GoFiles, file):
+			default:
+				log.WithFields(logging.Fields{
+					"rules":  consumer.Rules[file],
+					"reason": "ambiguous",
+					"file":   file,
+				}).Debug("skipped")
 
-		for _, name := range pkgFiles {
-			if rulesByFile[name] == nil {
-				srcFiles = append(srcFiles, name)
-				continue
+				continue CreateRules
 			}
-
-			if kind == "go_test" && inStrings(dir.Gopkg.GoFiles, name) {
-				srcFiles = append(srcFiles, name)
-				continue
-			}
-
-			ambiguous = true
-			break
 		}
 
-		if ambiguous {
-			continue
-		}
-
-		for _, name := range srcFiles {
-			rulesByFile[name] = appendUniqString(rulesByFile[name], rule.Name())
-		}
-
-		srcs := this.getRuleSrcs(dir, config, srcFiles)
-
+		srcs := this.getRuleSrcs(dir, config, pkgFiles)
 		if len(srcs) == 0 {
+			log.WithField("reason", "no sources").Debug("skipped")
+
 			continue
 		}
 
 		if config.ExplicitSources.IsTrue() {
 			rule.SetAttr("srcs", please.Strings(srcs...))
 		} else {
-			if !external {
-				exclude = append(exclude, dir.Gopkg.IgnoredGoFiles...)
-			}
-
 			rule.SetAttr("srcs", please.Glob(include, exclude))
 		}
 
-		if external {
+		if x.External {
 			rule.SetAttr("external", &please.Ident{Name: "True"})
 		}
 
-		if kind == "go_binary" || kind == "go_library" {
+		if x.Kind == "go_binary" || x.Kind == "go_library" {
 			visibility := this.getVisibility(config, dir.Path)
 
 			rule.SetAttr("visibility", please.Strings(visibility))
 		}
 
-		resolved, unresolved, err := this.getRuleDeps(srcFiles, config, dir)
+		resolved, unresolved, err := this.getRuleDeps(pkgFiles, config, dir)
 		if err != nil {
 			log.WithError(err).Warn("could not get deps")
 			return
@@ -759,11 +836,37 @@ func (this *Service) formatDirectory(log logging.Logger, dir *Directory) {
 			return
 		}
 
+		resolved = append(deps, resolved...)
+
 		if len(resolved) > 0 {
+			please.SortDeps(resolved)
 			rule.SetAttr("deps", please.Strings(resolved...))
 		}
 
+		consumer.Update(rule)
+
 		dir.Build.SetRule(rule)
+
+		log.Debug("created")
+	}
+
+	for _, files := range [][]string{
+		dir.Gopkg.GoFiles,
+		dir.Gopkg.TestGoFiles,
+		dir.Gopkg.XTestGoFiles,
+	} {
+		for _, file := range files {
+			if _, ok := consumer.Rules[file]; !ok {
+				info, ok := dir.Files[file]
+				if !ok {
+					continue
+				}
+
+				if info.Mode()&os.ModeSymlink == 0 { // is not symlink
+					log.WithField("file", file).Debug("unsourced")
+				}
+			}
+		}
 	}
 }
 
@@ -887,8 +990,14 @@ func isMatched(s string, patterns []string) bool {
 	return false
 }
 
-func inStrings(from []string, value string) bool {
-	return indexStrings(from, value) >= 0
+func inStrings(from []string, values ...string) bool {
+	for _, value := range values {
+		if indexStrings(from, value) < 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
 func appendUniqString(dest []string, from ...string) []string {
@@ -911,9 +1020,13 @@ func indexStrings(from []string, value string) int {
 	return -1
 }
 
-func deleteStrings(from []string, values ...string) []string {
+func deleteStrings(from []string, values ...string) ([]string, bool) {
+	var deleted bool
+
 	for _, s := range values {
 		if i := indexStrings(from, s); i >= 0 {
+			deleted = true
+
 			if i+1 < len(from) {
 				copy(from[i:], from[i+1:])
 			}
@@ -922,5 +1035,104 @@ func deleteStrings(from []string, values ...string) []string {
 		}
 	}
 
-	return from
+	return from, deleted
+}
+
+func sortManagedRules(config wollemi.Config, rules []please.Rule) {
+	sort.Slice(rules, func(i, j int) bool {
+		irule := rules[i]
+		jrule := rules[j]
+
+		ikind := config.Gofmt.GetMapped(irule.Kind())
+		jkind := config.Gofmt.GetMapped(jrule.Kind())
+
+		switch {
+		case ikind == jkind:
+			return irule.Name() < jrule.Name()
+		case ikind == "go_library":
+			return true
+		case ikind == "go_binary" && jkind != "go_library":
+			return true
+		case ikind == "go_test" && jkind != "go_binary" && jkind != "go_library":
+			return true
+		default:
+			return ikind < jkind
+		}
+	})
+}
+
+func deleteRulesIndex(rules []please.Rule, i int) []please.Rule {
+	size := len(rules)
+
+	if i+1 < size {
+		copy(rules[i:], rules[i+1:])
+	}
+
+	return rules[:size-1]
+}
+
+type fileConsumer struct {
+	Rules map[string][]string
+	Files map[string][]string
+	Dir   *Directory
+}
+
+func (fc *fileConsumer) GetRule(files ...string) please.Rule {
+	var names []string
+
+	for _, file := range files {
+		names = appendUniqString(names, fc.Rules[file]...)
+		if len(names) > 1 {
+			return nil
+		}
+	}
+
+	var rule please.Rule
+
+	if len(names) == 1 {
+		rule = fc.Dir.Build.GetRule(names[0])
+	}
+
+	return rule
+}
+
+func (fc *fileConsumer) Update(rule please.Rule) {
+	delete(fc.Files, rule.Name())
+
+	for file, rules := range fc.Rules {
+		fc.Rules[file], _ = deleteStrings(rules, rule.Name())
+	}
+
+	files := getSrcFilesFromExpr(rule.Attr("srcs"), fc.Dir)
+
+	for i := 0; i < len(files); i++ {
+		name := files[i]
+
+		switch {
+		case filepath.Ext(name) != ".go":
+			// Ignore non golang source files.
+		case strings.Contains(name, "/"):
+		// Ignore golang source files outside of this directory.
+		case strings.HasPrefix(name, "//"), strings.HasPrefix(name, ":"):
+		// Ignore please rule targets
+		default:
+			if _, ok := fc.Dir.Files[name]; !ok {
+				// This golang source file does not exist so it should be stripped
+				// from this rule's source list.
+
+				if i+1 < len(files) {
+					copy(files[i:], files[i+1:])
+				}
+
+				files = files[:len(files)-1]
+				i--
+			}
+		}
+	}
+
+	fc.Files[rule.Name()] = files
+
+	for _, file := range files {
+		fc.Rules[file] = appendUniqString(fc.Rules[file], rule.Name())
+	}
 }

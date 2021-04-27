@@ -69,6 +69,10 @@ func (this *Logger) Error(args ...interface{}) {
 	this.entry.Error(args...)
 }
 
+func (this *Logger) Debugf(format string, args ...interface{}) {
+	this.entry.Debugf(format, args...)
+}
+
 func (this *Logger) Debug(args ...interface{}) {
 	this.entry.Debug(args...)
 }

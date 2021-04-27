@@ -9,7 +9,7 @@ import (
 )
 
 func NewLogger() *Logger {
-	return &Logger{lvl: logging.InfoLevel}
+	return &Logger{lvl: logging.TraceLevel}
 }
 
 type Logger struct {
@@ -59,6 +59,10 @@ func (this *Logger) Warnf(format string, args ...interface{}) {
 
 func (this *Logger) Info(args ...interface{}) {
 	this.Log("info", nil, args...)
+}
+
+func (this *Logger) Debugf(format string, args ...interface{}) {
+	this.Logf("debug", nil, format, args...)
 }
 
 func (this *Logger) Debug(args ...interface{}) {
@@ -191,6 +195,10 @@ func (this *LoggerEntry) Warnf(format string, args ...interface{}) {
 
 func (this *LoggerEntry) Info(args ...interface{}) {
 	this.Log("info", args...)
+}
+
+func (this *LoggerEntry) Debugf(format string, args ...interface{}) {
+	this.Logf("debug", format, args...)
 }
 
 func (this *LoggerEntry) Debug(args ...interface{}) {

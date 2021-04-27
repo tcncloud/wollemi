@@ -17,6 +17,10 @@ type Config struct {
 	ExplicitSources           *optional.Bool    `json:"explicit_sources,omitempty"`
 }
 
+func (Config) String() string {
+	return "{}"
+}
+
 type Gofmt struct {
 	Rewrite *bool       `json:"rewrite,omitempty"`
 	Create  gofmtCreate `json:"create,omitempty"`
@@ -52,6 +56,12 @@ func (gofmt *Gofmt) GetMapped(kind string) string {
 	if gofmt != nil && gofmt.Mapped != nil {
 		if kind, ok := gofmt.Mapped[kind]; ok {
 			return kind
+		}
+
+		for fromKind, intoKind := range gofmt.Mapped {
+			if intoKind == kind {
+				return fromKind
+			}
 		}
 	}
 
