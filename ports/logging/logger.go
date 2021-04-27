@@ -14,6 +14,7 @@ type Logger interface {
 	Warnf(string, ...interface{})
 	Warn(...interface{})
 	Error(...interface{})
+	Debugf(string, ...interface{})
 	Debug(...interface{})
 	GetLevel() Level
 	SetLevel(Level)

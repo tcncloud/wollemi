@@ -268,15 +268,19 @@ func (this *Service) ParseDir(buf *bytes.Buffer, dir *Directory) *Directory {
 }
 
 type Directory struct {
-	Path       string
-	Rule       string
-	Gopkg      *golang.Package
-	Build      please.File
-	Ok         bool
-	Rewrite    bool
-	InRunPath  bool
-	Files      map[string]os.FileInfo
-	GoFiles    []string
-	BuildFiles []string
-	HasGoFile  bool
+	Path       string                 `json:"path,omitempty"`
+	Rule       string                 `json:"-"`
+	Gopkg      *golang.Package        `json:"gopkg,omitempty"`
+	Build      please.File            `json:"-"`
+	Ok         bool                   `json:"-"`
+	Rewrite    bool                   `json:"-"`
+	InRunPath  bool                   `json:"-"`
+	Files      map[string]os.FileInfo `json:"-"`
+	GoFiles    []string               `json:"-"`
+	BuildFiles []string               `json:"-"`
+	HasGoFile  bool                   `json:"-"`
+}
+
+func (Directory) String() string {
+	return "{}"
 }

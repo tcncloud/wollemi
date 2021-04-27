@@ -1274,6 +1274,274 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "manages mixture of internal and external go_test rules",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "internal_test"),
+							please.NewAssignExpr("=", "srcs", []string{}),
+							please.NewAssignExpr("=", "deps", []string{":server"}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "external_test"),
+							please.NewAssignExpr("=", "srcs", []string{}),
+							please.NewAssignExpr("=", "external", true),
+						}),
+					},
+				},
+			}),
+			ImportDir: map[string]*golang.Package{
+				"app/server": &golang.Package{
+					GoFiles:      []string{"server.go"},
+					TestGoFiles:  []string{"internal_test.go"},
+					XTestGoFiles: []string{"external_test.go"},
+					GoFileImports: map[string][]string{
+						"server.go": []string{
+							"database/sql",
+							"strings",
+						},
+						"internal_test.go": []string{
+							"testing",
+							"github.com/stretchr/testify/assert",
+						},
+						"external_test.go": []string{
+							"testing",
+							"github.com/example/app/server",
+							"github.com/golang/mock/gomock",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "internal_test"),
+							please.NewAssignExpr("=", "srcs", []string{"internal_test.go"}),
+							please.NewAssignExpr("=", "deps", []string{
+								":server",
+								"//third_party/go/github.com/stretchr:testify",
+							}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "external_test"),
+							please.NewAssignExpr("=", "srcs", []string{"external_test.go"}),
+							please.NewAssignExpr("=", "external", true),
+							please.NewAssignExpr("=", "deps", []string{
+								":server",
+								"//third_party/go/github.com/golang:mock",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "creates mixture of internal and external go_test rules",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
+			Parse: t.WithThirdPartyGo(nil),
+			ImportDir: map[string]*golang.Package{
+				"app/server": &golang.Package{
+					GoFiles:      []string{"server.go"},
+					TestGoFiles:  []string{"internal_test.go"},
+					XTestGoFiles: []string{"external_test.go"},
+					GoFileImports: map[string][]string{
+						"server.go": []string{
+							"database/sql",
+							"strings",
+						},
+						"internal_test.go": []string{
+							"testing",
+							"github.com/stretchr/testify/assert",
+						},
+						"external_test.go": []string{
+							"testing",
+							"github.com/example/app/server",
+							"github.com/golang/mock/gomock",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "internal_test"),
+							please.NewAssignExpr("=", "srcs", []string{"internal_test.go"}),
+							please.NewAssignExpr("=", "deps", []string{
+								":server",
+								"//third_party/go/github.com/stretchr:testify",
+							}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "external_test"),
+							please.NewAssignExpr("=", "srcs", []string{"external_test.go"}),
+							please.NewAssignExpr("=", "external", true),
+							please.NewAssignExpr("=", "deps", []string{
+								":server",
+								"//third_party/go/github.com/golang:mock",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "expands go_test glob srcs into explicit list when necessary",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "test"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*_test.go"})),
+							please.NewAssignExpr("=", "external", true),
+						}),
+					},
+				},
+			}),
+			ImportDir: map[string]*golang.Package{
+				"app/server": &golang.Package{
+					GoFiles:      []string{"server.go"},
+					TestGoFiles:  []string{"internal_test.go"},
+					XTestGoFiles: []string{"external_test.go"},
+					GoFileImports: map[string][]string{
+						"server.go": []string{
+							"database/sql",
+							"strings",
+						},
+						"internal_test.go": []string{
+							"testing",
+							"github.com/stretchr/testify/assert",
+						},
+						"external_test.go": []string{
+							"testing",
+							"github.com/example/app/server",
+							"github.com/golang/mock/gomock",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{"server.go"}),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "test"),
+							please.NewAssignExpr("=", "srcs", []string{"external_test.go"}),
+							please.NewAssignExpr("=", "external", true),
+							please.NewAssignExpr("=", "deps", []string{
+								":server",
+								"//third_party/go/github.com/golang:mock",
+							}),
+						}),
+						please.NewCallExpr("go_test", []please.Expr{
+							please.NewAssignExpr("=", "name", "internal_test"),
+							please.NewAssignExpr("=", "srcs", []string{"internal_test.go"}),
+							please.NewAssignExpr("=", "deps", []string{
+								":server",
+								"//third_party/go/github.com/stretchr:testify",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE ------------------------------------------------------------
+		Title: "manages rules which contain generated sources from another",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Paths: []string{"app/server"},
+			Lstat: map[string]*FileInfo{
+				"app/server/copier.cp.go": &FileInfo{
+					FileName: "copier.cp.go",
+					FileMode: 134218221,
+				},
+			},
+			Parse: t.WithThirdPartyGo(map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{":copier", "server.go"}),
+						}),
+						please.NewCallExpr("go_copy", []please.Expr{
+							please.NewAssignExpr("=", "name", "copier"),
+							please.NewAssignExpr("=", "src", "copier.json"),
+						}),
+					},
+				},
+			}),
+			ImportDir: map[string]*golang.Package{
+				"app/server": &golang.Package{
+					GoFiles: []string{"copier.cp.go", "server.go"},
+					GoFileImports: map[string][]string{
+						"copier.cp.go": []string{
+							"google.golang.org/grpc",
+							"strings",
+						},
+						"server.go": []string{
+							"database/sql",
+							"strings",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/server/BUILD.plz": &please.BuildFile{
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_library", []please.Expr{
+							please.NewAssignExpr("=", "name", "server"),
+							please.NewAssignExpr("=", "srcs", []string{":copier", "server.go"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/google.golang.org:grpc",
+							}),
+						}),
+						please.NewCallExpr("go_copy", []please.Expr{
+							please.NewAssignExpr("=", "name", "copier"),
+							please.NewAssignExpr("=", "src", "copier.json"),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 
