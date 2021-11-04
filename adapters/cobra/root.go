@@ -2,6 +2,7 @@ package cobra
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -15,9 +16,15 @@ func RootCmd(app ctl.Application) *cobra.Command {
 		logFormat string
 	)
 
+	version := os.Getenv("CI_COMMIT_TAG")
+	if version == "" {
+		version = "latest"
+	}
+
 	cmd := &cobra.Command{
-		Use:   "wollemi",
-		Short: "cli for wollemi",
+		Use:     "wollemi",
+		Version: version,
+		Short:   "cli for wollemi",
 		Long: Description(`
 			Please build file generator and formatter capable of generating go_binary,
 			go_library and go_test build rules from existing go code.
