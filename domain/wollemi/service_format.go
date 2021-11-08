@@ -19,11 +19,11 @@ const (
 	BUILD_FILE = "BUILD.plz"
 )
 
-func newGoFormat(s *Service, paths []string) *goFormat {
+func newGoFormat(paths []string) *goFormat {
 	return &goFormat{
 		resolveLimiter: NewChanFunc(1, 0),
 		isGoroot:       map[string]bool{},
-		paths:          s.normalizePaths(paths),
+		paths:          paths,
 		directories:    map[string]*Directory{},
 		external:       map[string][]string{},
 		internal:       map[string]string{},
@@ -34,14 +34,25 @@ func newGoFormat(s *Service, paths []string) *goFormat {
 // goFormat contains all the state for formatting go rules i.e. the import path to target mapping, and the rules in the
 // targeted Please packages.
 type goFormat struct {
-	isGoroot  map[string]bool
-	paths     []string
+	// isGoroot contains a cache of import paths that are part of the Go SDK
+	isGoroot map[string]bool
 
+	// paths are the normalised paths we were asked to format
+	paths []string
+
+	// resolveLimiter is used to control the concurrency on resolving targets.
 	resolveLimiter *ChanFunc
 
+	// directories represent the set of Please packages we have parsed
 	directories map[string]*Directory
+
+	// external is a map of third party imports to build targets
 	external map[string][]string
+
+	// internal is a map of this projects imports paths to targets
 	internal map[string]string
+
+	// genfiles contain a map of generated files added via go_copy() to their build targets
 	genfiles map[string]string
 }
 
@@ -117,7 +128,8 @@ func (this *Service) getTargetInternal(config wollemi.Config, path string, isFil
 	return this.getTargetInternal(config, path, isFile, depth+1)
 }
 
-// parsePaths will start parsing the Please packages to be formatted.
+// parsePaths will start parsing the Please packages to be formatted. It populates the directories map on the goFormat
+// struct. These can later be formatted with formatDirs().
 func (this *Service) parsePaths() error {
 	collect := make(chan *Directory, 1000)
 	parse := make(chan *Directory, 1000)
@@ -312,6 +324,7 @@ func (this *Service) parsePaths() error {
 	return nil
 }
 
+// formatDirs updated the BUILD file in the directories that were in the original paths
 func (this *Service) formatDirs() {
 	limiter := NewChanFunc(runtime.NumCPU()-1, 0)
 	defer limiter.Close()
@@ -367,7 +380,7 @@ func (this *Service) isInternal(path string) bool {
 }
 
 func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
-	this.goFormat = newGoFormat(this, paths)
+	this.goFormat = newGoFormat(this.normalizePaths(paths))
 	defer this.goFormat.resolveLimiter.Close()
 
 	this.config = config
