@@ -45,16 +45,16 @@ type goFormat struct {
 	genfiles map[string]string
 }
 
-// resolve an import path or generated file to a Please target
-func (this *Service) resolve(config wollemi.Config, p string, isFile bool) string {
+// getTarget gets the target for an import path or generated file
+func (this *Service) getTarget(config wollemi.Config, p string, isFile bool) string {
 	var target string
 	this.goFormat.resolveLimiter.RunBlock(func() {
-		target, _ = this.resolveInternal(config, p, isFile, 0)
+		target, _ = this.getTargetInternal(config, p, isFile, 0)
 	})
 	return target
 }
 
-func (this *Service) resolveInternal(config wollemi.Config, path string, isFile bool, depth int) (string, string) {
+func (this *Service) getTargetInternal(config wollemi.Config, path string, isFile bool, depth int) (string, string) {
 	if target, ok := config.KnownDependency[path]; ok {
 		return target, path
 	}
@@ -114,7 +114,7 @@ func (this *Service) resolveInternal(config wollemi.Config, path string, isFile 
 		return "", path
 	}
 
-	return this.resolveInternal(config, path, isFile, depth+1)
+	return this.getTargetInternal(config, path, isFile, depth+1)
 }
 
 // parsePaths will start parsing the Please packages to be formatted.
@@ -415,7 +415,7 @@ func (this *Service) getRuleDeps(files []string, config wollemi.Config, dir *Dir
 				continue
 			}
 
-			targetPath := this.resolve(config, path, false)
+			targetPath := this.getTarget(config, path, false)
 			if targetPath == "" {
 				unresolved = append(unresolved, path)
 				continue
@@ -457,7 +457,7 @@ func (this *Service) getRuleSrcs(dir *Directory, config wollemi.Config, srcFiles
 	for _, name := range srcFiles {
 		relpath := filepath.Join(dir.Path, name)
 
-		targetPath := this.resolve(config, relpath, true)
+		targetPath := this.getTarget(config, relpath, true)
 		if targetPath == "" {
 			info, ok := dir.Files[name]
 			if !ok {
