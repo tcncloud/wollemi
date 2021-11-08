@@ -934,7 +934,7 @@ func (t *ServiceSuite) TestService_GoFormat() {
 			},
 		},
 	}, { // TEST_CASE ------------------------------------------------------------
-		Title: "overrides filesystem package config gofmt create using ctl config",
+		Title: "overrides filesystem package config resolver create using ctl config",
 		Config: wollemi.Config{
 			Gofmt: wollemi.Gofmt{
 				Create: []string{},

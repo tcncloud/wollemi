@@ -50,11 +50,8 @@ type Service struct {
 	wd         string
 	gosrc      string
 	gopkg      string
-	gofmt      struct {
-		getTarget func(wollemi.Config, string, bool) (string, string)
-		isGoroot  map[string]bool
-		paths     []string
-	}
+
+	goFormat *goFormat
 }
 
 func (this *Service) normalizePaths(paths []string) []string {
