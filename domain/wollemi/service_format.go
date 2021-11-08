@@ -195,8 +195,14 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 						Path: dir.Path,
 					}
 
-					for _, install := range rule.AttrStrings("install") {
-						install = strings.TrimSuffix(install, "/...")
+
+					install := rule.AttrStrings("install")
+					if len(install) == 0 {
+						install = []string{"."} // Empty install list installs the root package
+					}
+
+					for _, install := range install {
+						install = filepath.Clean(strings.TrimSuffix(install, "..."))
 						path := module
 
 						if install != "." {
