@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -21,14 +22,18 @@ func init() {
 }
 
 func NewImporter() *Importer {
+	osarch := strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "_")
+	goroot := build.Default.GOROOT
+
 	return &Importer{
-		pkgs: make(map[string]*Package),
+		gorootpkg: filepath.Join(goroot, "pkg", osarch),
+		gorootsrc: filepath.Join(goroot, "src"),
 	}
 }
 
 type Importer struct {
-	pkgs map[string]*Package
-	wd   string
+	gorootpkg string
+	gorootsrc string
 }
 
 func (this *Importer) GOPATH() string {
@@ -122,21 +127,22 @@ func (this *Importer) ImportDir(dir string, names []string) (*Package, error) {
 	sort.Strings(out.TestGoFiles)
 	sort.Strings(out.XTestGoFiles)
 
-	gorootsrc := filepath.Join(this.GOROOT(), "src")
-	out.Goroot = strings.HasPrefix(dir, gorootsrc+"/")
+	out.Goroot = strings.HasPrefix(dir, this.gorootsrc+"/")
 
 	return out, nil
 }
 
 func (this *Importer) IsGoroot(path string) bool {
-	gorootsrc := filepath.Join(this.GOROOT(), "src")
+	pkg := filepath.Join(this.gorootpkg, path+".a")
+	src := filepath.Join(this.gorootsrc, path)
 
-	if strings.HasPrefix(path, "/") {
-		return strings.HasPrefix(path, gorootsrc+"/")
+	for _, path := range []string{pkg, src} {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
 	}
 
-	info, err := os.Stat(filepath.Join(gorootsrc, path))
-	return err == nil && info.IsDir()
+	return false
 }
 
 func NewPackage(in *build.Package, err error) (*Package, error) {
