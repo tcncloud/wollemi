@@ -2,12 +2,12 @@ package cobra
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/tcncloud/wollemi/ports/ctl"
 	"github.com/tcncloud/wollemi/ports/logging"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
 
 func RootCmd(app ctl.Application) *cobra.Command {
@@ -16,14 +16,9 @@ func RootCmd(app ctl.Application) *cobra.Command {
 		logFormat string
 	)
 
-	version := os.Getenv("CI_COMMIT_TAG")
-	if version == "" {
-		version = "latest"
-	}
-
 	cmd := &cobra.Command{
 		Use:     "wollemi",
-		Version: version,
+		Version: wollemi.WollemiVersion,
 		Short:   "cli for wollemi",
 		Long: Description(`
 			Please build file generator and formatter capable of generating go_binary,
