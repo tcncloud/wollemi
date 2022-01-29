@@ -1652,6 +1652,45 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE -------------------------------------------------------------
+		Title:  "reads config from directory when absolute path given",
+		Config: wollemi.Config{},
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Root:  "/root",
+			Wd:    "/root",
+			Config: map[string]wollemi.Config{
+				"parent/app": {KnownDependency: map[string]string{
+					"github.com/example/dep": "//third_party/go/github.com/example/override"}},
+			},
+			Paths: []string{"/root/parent/app"},
+			ImportDir: map[string]*golang.Package{
+				"parent/app": {
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": {
+							"github.com/example/dep",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"parent/app/BUILD.plz": {
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/example/override",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 
