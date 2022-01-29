@@ -60,7 +60,11 @@ func (this *Service) normalizePaths(paths []string) []string {
 	}
 
 	for i, path := range paths {
-		path = filepath.Clean(path)
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(this.wd, path)
+		}
+		// TODO: should we check that all absolute paths live under the root before we get to here? i don't think we can
+		// format them if not
 		if strings.HasPrefix(path, this.root) {
 			path, _ = filepath.Rel(this.root, path)
 		}

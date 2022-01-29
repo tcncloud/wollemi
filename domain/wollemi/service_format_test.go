@@ -1618,66 +1618,101 @@ func (t *ServiceSuite) TestService_GoFormat() {
 			},
 		},
 	}, { // TEST_CASE -------------------------------------------------------------
-		Title: "merges configs between wd and given path together",
-		Config: wollemi.Config{
-			KnownDependency: map[string]string{
-				"github.com/dep1": "//third_party/go/github.com/wont_be_used",
-			},
-		},
+		Title: "accepts relative paths when in a child of the root",
 		Data: &GoFormatTestData{
 			Gosrc: gosrc,
 			Gopkg: gopkg,
-			Config: map[string]wollemi.Config{
-				"wd": wollemi.Config{
-					KnownDependency: map[string]string{
-						"github.com/dep1": "//third_party/go/github.com/foo_override",
-					},
-				},
-				"wd/foo": wollemi.Config{
-					KnownDependency: map[string]string{
-						"github.com/dep2": "//third_party/go/github.com/foo_override",
-					},
-				},
-				"wd/foo/app": wollemi.Config{
-					KnownDependency: map[string]string{
-						"github.com/dep3": "//third_party/go/github.com/app_override",
-					},
-				},
-			},
 			Root:  "/root",
 			Wd:    "/root/wd",
-			Paths: []string{"foo/app"},
+			Paths: []string{"app"},
 			Parse: t.WithThirdPartyGo(nil),
 			ImportDir: map[string]*golang.Package{
-				"wd/foo/app": {
+				"wd/app": {
 					Name:    "main",
 					GoFiles: []string{"main.go"},
 					GoFileImports: map[string][]string{
 						"main.go": {
-							"github.com/dep1",
-							"github.com/dep2",
-							"github.com/dep3",
+							"github.com/spf13/cobra",
 						},
 					},
 				},
 			},
 			Write: map[string]*please.BuildFile{
-				"wd/foo/app/BUILD.plz": {
+				"wd/app/BUILD.plz": {
 					Stmt: []please.Expr{
 						please.NewCallExpr("go_binary", []please.Expr{
 							please.NewAssignExpr("=", "name", "app"),
 							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
 							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
 							please.NewAssignExpr("=", "deps", []string{
-								"//third_party/go/github.com/wd_override",
-								"//third_party/go/github.com/foo_override",
-								"//third_party/go/github.com/app_override",
+								"//third_party/go/github.com/spf13:cobra",
 							}),
 						}),
 					},
 				},
 			},
 		},
+		// }, { // TEST_CASE -------------------------------------------------------------
+		// 	Title: "merges configs between wd and given path together",
+		// 	Config: wollemi.Config{
+		// 		KnownDependency: map[string]string{
+		// 			"github.com/dep1": "//third_party/go/github.com/wont_be_used",
+		// 		},
+		//},
+		// 	Data: &GoFormatTestData{
+		// 		Gosrc: gosrc,
+		// 		Gopkg: gopkg,
+		// 		Config: map[string]wollemi.Config{
+		// 			"wd": wollemi.Config{
+		// 				KnownDependency: map[string]string{
+		// 					"github.com/dep1": "//third_party/go/github.com/foo_override",
+		// 				},
+		// 			},
+		// 			"wd/foo": wollemi.Config{
+		// 				KnownDependency: map[string]string{
+		// 					"github.com/dep2": "//third_party/go/github.com/foo_override",
+		// 				},
+		// 			},
+		// 			"wd/foo/app": wollemi.Config{
+		// 				KnownDependency: map[string]string{
+		// 					"github.com/dep3": "//third_party/go/github.com/app_override",
+		// 				},
+		// 			},
+		// 		},
+		// 		Root:  "/root",
+		// 		Wd:    "/root/wd",
+		// 		Paths: []string{"foo/app"},
+		// 		Parse: t.WithThirdPartyGo(nil),
+		// 		ImportDir: map[string]*golang.Package{
+		// 			"wd/foo/app": {
+		// 				Name:    "main",
+		// 				GoFiles: []string{"main.go"},
+		// 				GoFileImports: map[string][]string{
+		// 					"main.go": {
+		// 						"github.com/dep1",
+		// 						"github.com/dep2",
+		// 						"github.com/dep3",
+		// 					},
+		// 				},
+		// 			},
+		// 		},
+		// 		Write: map[string]*please.BuildFile{
+		// 			"wd/foo/app/BUILD.plz": {
+		// 				Stmt: []please.Expr{
+		// 					please.NewCallExpr("go_binary", []please.Expr{
+		// 						please.NewAssignExpr("=", "name", "app"),
+		// 						please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+		// 						please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+		// 						please.NewAssignExpr("=", "deps", []string{
+		// 							"//third_party/go/github.com/wd_override",
+		// 							"//third_party/go/github.com/foo_override",
+		// 							"//third_party/go/github.com/app_override",
+		// 						}),
+		// 					}),
+		// 				},
+		// 			},
+		// 		},
+		// 	},
 	}} {
 		focus := ""
 
