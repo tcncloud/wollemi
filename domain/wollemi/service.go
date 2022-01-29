@@ -59,14 +59,12 @@ func (this *Service) normalizePaths(paths []string) []string {
 		paths = []string{"..."}
 	}
 
-	var relpath string
-
-	if this.wd != this.root && strings.HasPrefix(this.wd, this.root) {
-		relpath = strings.TrimPrefix(this.wd, this.root+"/")
-
-		for i, path := range paths {
-			paths[i] = filepath.Join(relpath, strings.TrimSuffix(path, "/"))
+	for i, path := range paths {
+		path = filepath.Clean(path)
+		if strings.HasPrefix(path, this.root) {
+			path, _ = filepath.Rel(this.root, path)
 		}
+		paths[i] = path
 	}
 
 	return paths
