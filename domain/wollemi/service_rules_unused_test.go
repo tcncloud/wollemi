@@ -18,15 +18,10 @@ func TestService_RulesUnused(t *testing.T) {
 func (t *ServiceSuite) TestService_RulesUnused() {
 	type T = ServiceSuite
 
-	const (
-		gopkg = "github.com/wollemi_test"
-		gosrc = "/go/src"
-	)
-
 	t.It("can list unused build rules", func(t *T) {
 		t.MockRulesUnused()
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			prune        bool
@@ -106,7 +101,7 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 			expect.Equal(t, want, have)
 		})
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			prune        bool = true

@@ -29,6 +29,11 @@ const (
 	gopkg = "github.com/example"
 )
 
+var (
+	root = filepath.Join(gosrc, gopkg)
+	wd   = root
+)
+
 func (t *ServiceSuite) TestService_GoFormat() {
 	type T = ServiceSuite
 
@@ -1554,7 +1559,7 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 			t.MockGoFormat(tt.Data, write)
 
-			wollemi := t.New(tt.Data.Gosrc, tt.Data.Gopkg)
+			wollemi := t.New(root, wd, tt.Data.Gosrc, tt.Data.Gopkg)
 
 			require.NoError(t, wollemi.GoFormat(tt.Config, tt.Data.Paths))
 			close(write)

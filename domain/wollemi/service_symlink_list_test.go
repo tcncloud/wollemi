@@ -19,11 +19,6 @@ func TestService_SymlinkList(t *testing.T) {
 func (t *ServiceSuite) TestService_SymlinkList() {
 	type T = ServiceSuite
 
-	const (
-		gopkg = "github.com/wollemi_test"
-		gosrc = "/go/src"
-	)
-
 	t.It("can list all project symlinks", func(t *T) {
 		data := t.GoSymlinkTestData()
 
@@ -55,7 +50,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 				return filepath.Join(gosrc, gopkg, s), nil
 			})
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			name    = "*"
@@ -147,7 +142,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 				return info, nil
 			})
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			name         = "*"
@@ -212,7 +207,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 				return filepath.Join(gosrc, gopkg, s), nil
 			})
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			name    = "*.mg.go"
@@ -292,7 +287,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 
 		t.filesystem.EXPECT().Remove("app/protos/service.pb.go")
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			name         = "*.pb.go"
@@ -361,7 +356,7 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 				return filepath.Join(gosrc, gopkg, s), nil
 			})
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			name    = "*"

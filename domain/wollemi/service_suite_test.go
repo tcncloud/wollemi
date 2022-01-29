@@ -2,7 +2,6 @@ package wollemi_test
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -10,9 +9,9 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"github.com/tcncloud/wollemi/domain/wollemi"
-	"github.com/tcncloud/wollemi/ports/golang/mock"
-	"github.com/tcncloud/wollemi/ports/please/mock"
-	"github.com/tcncloud/wollemi/ports/wollemi/mock"
+	mock_golang "github.com/tcncloud/wollemi/ports/golang/mock"
+	mock_please "github.com/tcncloud/wollemi/ports/please/mock"
+	mock_wollemi "github.com/tcncloud/wollemi/ports/wollemi/mock"
 	"github.com/tcncloud/wollemi/testdata/mem"
 )
 
@@ -61,14 +60,14 @@ func (suite *ServiceSuite) Run(name string, yield func(*ServiceSuite)) {
 	})
 }
 
-func (suite *ServiceSuite) New(gosrc, gopkg string) *wollemi.Service {
+func (suite *ServiceSuite) New(root, wd, gosrc, gopkg string) *wollemi.Service {
 	return wollemi.New(
 		suite.logger,
 		suite.filesystem,
 		suite.golang,
 		suite.please,
-		filepath.Join(gosrc, gopkg),
-		filepath.Join(gosrc, gopkg),
+		root,
+		wd,
 		gosrc,
 		gopkg,
 	)
