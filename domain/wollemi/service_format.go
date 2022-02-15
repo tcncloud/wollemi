@@ -19,66 +19,128 @@ const (
 	BUILD_FILE = "BUILD.plz"
 )
 
-func (this *Service) Format(config wollemi.Config, paths []string) error {
-	config.Gofmt.Rewrite = wollemi.Bool(false)
-
-	return this.GoFormat(config, paths)
+func newGoFormat(paths []string) *goFormat {
+	return &goFormat{
+		resolveLimiter: NewChanFunc(1, 0),
+		isGoroot:       map[string]bool{},
+		paths:          paths,
+		directories:    map[string]*Directory{},
+		external:       map[string][]string{},
+		internal:       map[string]string{},
+		genfiles:       map[string]string{},
+	}
 }
 
-func (this *Service) isInternal(path string) bool {
-	if this.gopkg != "" && strings.HasPrefix(path, this.gopkg) {
-		return true
-	}
+// goFormat contains all the state for formatting go rules i.e. the import path to target mapping, and the rules in the
+// targeted Please packages.
+type goFormat struct {
+	// isGoroot contains a cache of import paths that are part of the Go SDK
+	isGoroot map[string]bool
 
-	for _, path := range []string{path, filepath.Dir(path)} {
-		if path == "." {
-			continue
-		}
+	// paths are the normalised paths we were asked to format
+	paths []string
 
-		for _, prefix := range []string{"", "plz-out/gen"} {
-			info, err := this.filesystem.Stat(filepath.Join(prefix, path))
+	// resolveLimiter is used to control the concurrency on resolving targets.
+	resolveLimiter *ChanFunc
 
-			if err != nil && !os.IsNotExist(err) {
-				this.log.WithField("path", path).Warnf("could not stat: %v", err)
-			}
+	// directories represent the set of Please packages we have parsed
+	directories map[string]*Directory
 
-			if err == nil && info.IsDir() {
-				return true
-			}
-		}
-	}
+	// external is a map of third party imports to build targets
+	external map[string][]string
 
-	return false
+	// internal is a map of this projects imports paths to targets
+	internal map[string]string
+
+	// genfiles contain a map of generated files added via go_copy() to their build targets
+	genfiles map[string]string
 }
 
-func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
-	this.gofmt.paths = this.normalizePaths(paths)
-	this.config = config
+// getTarget gets the target for an import path or generated file
+func (this *Service) getTarget(config wollemi.Config, p string, isFile bool) string {
+	var target string
+	this.goFormat.resolveLimiter.RunBlock(func() {
+		target, _ = this.getTargetInternal(config, p, isFile, 0)
+	})
+	return target
+}
 
-	log := this.log.WithField("rewrite", this.config.Gofmt.GetRewrite())
-	for i, path := range this.gofmt.paths {
-		log = log.WithField(fmt.Sprintf("path[%d]", i), path)
+func (this *Service) getTargetInternal(config wollemi.Config, path string, isFile bool, depth int) (string, string) {
+	if target, ok := config.KnownDependency[path]; ok {
+		return target, path
 	}
 
-	log.Debug("running gofmt")
+	if isFile && filepath.Ext(path) == ".go" {
+		if target, ok := this.goFormat.genfiles[path]; ok {
+			return target, path
+		} else {
+			return "", path
+		}
+	}
 
+	if depth == 0 {
+		if target, ok := this.goFormat.internal[path]; ok {
+			return target, path
+		}
+
+		if _, ok := this.goFormat.directories[path]; ok {
+			return fmt.Sprintf("//%s", path), path
+		}
+
+		if this.isInternal(path) {
+			if dir, ok := this.goFormat.directories[filepath.Dir(path)]; ok {
+				name := filepath.Base(path)
+
+				if dir.Build != nil {
+					if rule := dir.Build.GetRule(name); rule != nil {
+						return fmt.Sprintf("//%s:%s", dir.Path, name), dir.Path
+					}
+				}
+			}
+
+			if path == this.gopkg {
+				path = fmt.Sprintf(":%s", filepath.Base(this.wd))
+			} else {
+				path = strings.TrimPrefix(path, this.gopkg+"/")
+			}
+
+			return fmt.Sprintf("//%s", path), path
+		}
+	}
+
+	targets, ok := this.goFormat.external[path]
+
+	if ok {
+		if len(targets) > 1 {
+			this.log.WithField("choices", targets).
+				WithField("godep", path).
+				WithField("chose", targets[0]).
+				Warn("ambiguous godep")
+		}
+		return targets[0], path
+	}
+
+	path = filepath.Dir(path)
+	if path == "." {
+		return "", path
+	}
+
+	return this.getTargetInternal(config, path, isFile, depth+1)
+}
+
+// parsePaths will start parsing the Please packages to be formatted. It populates the directories map on the goFormat
+// struct. These can later be formatted with formatDirs().
+func (this *Service) parsePaths() error {
 	collect := make(chan *Directory, 1000)
 	parse := make(chan *Directory, 1000)
 	walk := make(chan *Directory, 1000)
-
-	directories := make(map[string]*Directory)
-	external := make(map[string][]string)
-	internal := make(map[string]string)
-	genfiles := make(map[string]string)
-
-	this.gofmt.isGoroot = make(map[string]bool)
 
 	for i := 0; i < runtime.NumCPU()-1; i++ {
 		go func() {
 			var buf bytes.Buffer
 
 			for dir := range parse {
-				dir.InRunPath = inRunPath(dir.Path, this.gofmt.paths...)
+				dir.InRunPath = inRunPath(dir.Path, this.goFormat.paths...)
 				dir.Rewrite = this.config.Gofmt.GetRewrite()
 
 				nonBlockingSend(collect, this.ParseDir(&buf, dir))
@@ -86,7 +148,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 		}()
 	}
 
-	if err := this.ReadDirs(walk, this.gofmt.paths...); err != nil {
+	if err := this.ReadDirs(walk, this.goFormat.paths...); err != nil {
 		return fmt.Errorf("could not walk: %v", err)
 	}
 
@@ -109,7 +171,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 				continue
 			}
 
-			directories[dir.Path] = dir
+			this.goFormat.directories[dir.Path] = dir
 
 			if dir.Gopkg != nil {
 				for _, imports := range [][]string{
@@ -119,12 +181,12 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 				} {
 				Imports:
 					for _, godep := range imports {
-						goroot, ok := this.gofmt.isGoroot[godep]
+						goroot, ok := this.goFormat.isGoroot[godep]
 
 						if !ok {
 							goroot = this.golang.IsGoroot(godep)
 
-							this.gofmt.isGoroot[godep] = goroot
+							this.goFormat.isGoroot[godep] = goroot
 						}
 
 						if goroot {
@@ -139,11 +201,11 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 							path = filepath.Join("third_party/go", path)
 						}
 
-						if _, ok := external[godep]; ok {
+						if _, ok := this.goFormat.external[godep]; ok {
 							continue
 						}
 
-						if inRunPath(path, this.gofmt.paths...) {
+						if inRunPath(path, this.goFormat.paths...) {
 							continue
 						}
 
@@ -156,7 +218,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 								continue Imports
 							}
 
-							if _, ok := directories[path]; ok {
+							if _, ok := this.goFormat.directories[path]; ok {
 								continue Imports
 							}
 
@@ -209,7 +271,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 							path = filepath.Join(path, install)
 						}
 
-						external[path] = append(external[path], target.String())
+						this.goFormat.external[path] = append(this.goFormat.external[path], target.String())
 					}
 				case "go_get", "go_get_with_sources":
 					get := strings.TrimSuffix(rule.AttrString("get"), "/...")
@@ -230,7 +292,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 					}
 
 					if get != "" && rule.AttrLiteral("binary") != "True" {
-						external[get] = append(external[get], target.String())
+						this.goFormat.external[get] = append(this.goFormat.external[get], target.String())
 					}
 				default:
 					name := rule.AttrString("name")
@@ -250,13 +312,13 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 
 					switch {
 					case importPath != "":
-						external[importPath] = append(external[path], "//"+target)
+						this.goFormat.external[importPath] = append(this.goFormat.external[path], "//"+target)
 					case strings.HasPrefix(path, "third_party/go/"):
 					case kind != "go_test":
-						internal[filepath.Join(this.gopkg, path)] = "//" + target
+						this.goFormat.internal[filepath.Join(this.gopkg, path)] = "//" + target
 
 						if kind == "go_copy" {
-							genfiles[path+".cp.go"] = target
+							this.goFormat.genfiles[path+".cp.go"] = target
 						}
 					}
 				}
@@ -265,88 +327,15 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 	}
 
 	close(parse)
+	return nil
+}
 
-	get := NewChanFunc(1, 0)
-	gen := NewChanFunc(runtime.NumCPU()-1, 0)
+// formatDirs updated the BUILD file in the directories that were in the original paths
+func (this *Service) formatDirs() {
+	limiter := NewChanFunc(runtime.NumCPU()-1, 0)
+	defer limiter.Close()
 
-	this.gofmt.getTarget = (func() func(wollemi.Config, string, bool) (string, string) {
-		var inner func(wollemi.Config, string, bool, int) (string, string)
-
-		inner = func(config wollemi.Config, path string, isFile bool, depth int) (string, string) {
-			if target, ok := config.KnownDependency[path]; ok {
-				return target, path
-			}
-
-			if isFile && filepath.Ext(path) == ".go" {
-				if target, ok := genfiles[path]; ok {
-					return target, path
-				} else {
-					return "", path
-				}
-			}
-
-			if depth == 0 {
-				if target, ok := internal[path]; ok {
-					return target, path
-				}
-
-				if _, ok := directories[path]; ok {
-					return fmt.Sprintf("//%s", path), path
-				}
-
-				if this.isInternal(path) {
-					if dir, ok := directories[filepath.Dir(path)]; ok {
-						name := filepath.Base(path)
-
-						if dir.Build != nil {
-							if rule := dir.Build.GetRule(name); rule != nil {
-								return fmt.Sprintf("//%s:%s", dir.Path, name), dir.Path
-							}
-						}
-					}
-
-					if path == this.gopkg {
-						path = fmt.Sprintf(":%s", filepath.Base(this.wd))
-					} else {
-						path = strings.TrimPrefix(path, this.gopkg+"/")
-					}
-
-					return fmt.Sprintf("//%s", path), path
-				}
-			}
-
-			targets, ok := external[path]
-			if ok {
-				if len(targets) > 1 {
-					this.log.WithField("choices", targets).
-						WithField("godep", path).
-						WithField("chose", targets[0]).
-						Warn("ambiguous godep")
-				}
-
-				return targets[0], path
-			}
-
-			path = filepath.Dir(path)
-			if path == "." {
-				return "", path
-			}
-
-			return inner(config, path, isFile, depth+1)
-		}
-
-		return func(config wollemi.Config, path string, isFile bool) (string, string) {
-			var target string
-
-			get.RunBlock(func() {
-				target, path = inner(config, path, isFile, 0)
-			})
-
-			return target, path
-		}
-	}())
-
-	for path, dir := range directories {
+	for path, dir := range this.goFormat.directories {
 		if !dir.InRunPath {
 			continue
 		}
@@ -354,7 +343,7 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 		log := this.log.WithField("path", filepath.Join("/", path))
 		dir := dir
 
-		gen.Run(func() {
+		limiter.Run(func() {
 			this.formatDir(log, dir)
 
 			if err := this.please.Write(dir.Build); err != nil {
@@ -362,9 +351,58 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 			}
 		})
 	}
+}
 
-	gen.Close()
-	get.Close()
+func (this *Service) Format(config wollemi.Config, paths []string) error {
+	config.Gofmt.Rewrite = wollemi.Bool(false)
+
+	return this.GoFormat(config, paths)
+}
+
+func (this *Service) isInternal(path string) bool {
+	if this.gopkg != "" && strings.HasPrefix(path, this.gopkg) {
+		return true
+	}
+
+	for _, path := range []string{path, filepath.Dir(path)} {
+		if path == "." {
+			continue
+		}
+
+		for _, prefix := range []string{"", "plz-out/gen"} {
+			info, err := this.filesystem.Stat(filepath.Join(prefix, path))
+
+			if err != nil && !os.IsNotExist(err) {
+				this.log.WithField("path", path).Warnf("could not stat: %v", err)
+			}
+
+			if err == nil && info.IsDir() {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
+	this.goFormat = newGoFormat(this.normalizePaths(paths))
+	defer this.goFormat.resolveLimiter.Close()
+
+	this.config = config
+
+	log := this.log.WithField("rewrite", this.config.Gofmt.GetRewrite())
+
+	for i, path := range this.goFormat.paths {
+		log = log.WithField(fmt.Sprintf("path[%d]", i), path)
+	}
+
+	log.Debug("running gofmt")
+
+	if err := this.parsePaths(); err != nil {
+		return err
+	}
+	this.formatDirs()
 
 	return nil
 }
@@ -392,11 +430,11 @@ func (this *Service) getRuleDeps(files []string, config wollemi.Config, dir *Dir
 		}
 
 		for _, path := range imports {
-			if this.gofmt.isGoroot[path] {
+			if this.goFormat.isGoroot[path] {
 				continue
 			}
 
-			targetPath, _ := this.gofmt.getTarget(config, path, false)
+			targetPath := this.getTarget(config, path, false)
 			if targetPath == "" {
 				unresolved = append(unresolved, path)
 				continue
@@ -415,7 +453,7 @@ func (this *Service) getVisibility(config wollemi.Config, path string) string {
 		return config.DefaultVisibility
 	}
 
-	for _, root := range this.gofmt.paths {
+	for _, root := range this.goFormat.paths {
 		target := please.Split(root)
 
 		if target.Path == "." {
@@ -438,7 +476,7 @@ func (this *Service) getRuleSrcs(dir *Directory, config wollemi.Config, srcFiles
 	for _, name := range srcFiles {
 		relpath := filepath.Join(dir.Path, name)
 
-		targetPath, _ := this.gofmt.getTarget(config, relpath, true)
+		targetPath := this.getTarget(config, relpath, true)
 		if targetPath == "" {
 			info, ok := dir.Files[name]
 			if !ok {
