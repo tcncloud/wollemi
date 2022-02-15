@@ -1,6 +1,6 @@
 go_library(
     name = "logrus",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["logger.go"],
     visibility = ["//..."],
     deps = [
         "//ports/logging",
@@ -10,7 +10,10 @@ go_library(
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = [
+        "logger_suite_test.go",
+        "logger_test.go",
+    ],
     external = True,
     deps = [
         ":logrus",

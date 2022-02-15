@@ -11,7 +11,6 @@ type GraphPackage struct {
 type GraphTarget struct {
 	Inputs   []string `json:"inputs,omitempty"`
 	Outs     []string `json:"outs,omitempty"`
-	Srcs     []string `json:"srcs,omitempty"`
 	Deps     []string `json:"deps,omitempty"`
 	Data     []string `json:"data,omitempty"`
 	Labels   []string `json:"labels,omitempty"`

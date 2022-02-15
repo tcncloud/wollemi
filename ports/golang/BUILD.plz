@@ -1,8 +1,7 @@
 go_library(
     name = "golang",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["importer.go"],
     visibility = ["//..."],
-    deps = [],
 )
 
 go_mock(

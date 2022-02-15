@@ -1,9 +1,10 @@
 package(default_visibility = ["PUBLIC"])
 
-go_get(
+go_module(
     name = "gcfg",
-    get = "github.com/peterebden/gcfg/...",
-    revision = "v1.3.0",
+    install = ["..."],
+    module = "github.com/please-build/gcfg",
+    version = "v1.6.0",
     deps = [
         "//third_party/go/gopkg.in:warnings",
     ],

@@ -1,18 +1,16 @@
 package(default_visibility = ["PUBLIC"])
 
-go_get(
+go_module(
     name = "cobra",
-    get = "github.com/spf13/cobra",
-    repo = "github.com/spf13/cobra",
-    revision = "v1.0.0",
+    module = "github.com/spf13/cobra",
+    version = "v1.3.0",
     deps = [
         ":pflag",
     ],
 )
 
-go_get(
+go_module(
     name = "pflag",
-    get = "github.com/spf13/pflag",
-    repo = "github.com/spf13/pflag",
-    revision = "v1.0.5",
+    module = "github.com/spf13/pflag",
+    version = "v1.0.5",
 )

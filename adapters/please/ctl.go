@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/peterebden/gcfg"
+	"github.com/please-build/gcfg"
 
 	"github.com/tcncloud/wollemi/ports/please"
 )

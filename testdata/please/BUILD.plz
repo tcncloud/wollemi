@@ -1,6 +1,10 @@
 go_library(
     name = "please",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = [
+        "build.go",
+        "copier.go",
+        "expr.go",
+    ],
     test_only = True,
     visibility = ["//..."],
     deps = ["//ports/please"],
@@ -8,7 +12,7 @@ go_library(
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = ["build_test.go"],
     external = True,
     deps = [
         ":please",

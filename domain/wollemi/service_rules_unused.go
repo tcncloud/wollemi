@@ -25,8 +25,9 @@ func (this *Service) RulesUnused(prune bool, kinds, paths, exclude []string) err
 			"genrule",
 			"go_get",
 			"go_get_with_sources",
-			"go_mock",
 			"go_library",
+			"go_mock",
+			"go_module",
 			"grpc_library",
 			"pip_library",
 		}

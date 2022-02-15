@@ -1,6 +1,6 @@
 go_library(
     name = "filesystem",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["filesystem.go"],
     visibility = ["//..."],
     deps = [
         "//ports/logging",

@@ -1,46 +1,34 @@
 package(default_visibility = ["PUBLIC"])
 
-go_get(
-    name = "tools",
-    get = "golang.org/x/tools",
-    install = [
-        "imports",
-    ],
-    repo = "github.com/golang/tools",
-    revision = "d88f79806bbd013f54a668506864ce559edf6f0a",
-)
-
-go_get(
+go_module(
     name = "sys",
-    get = "golang.org/x/sys",
     install = [
         "unix",
+        "internal/unsafeheader",
     ],
-    repo = "github.com/golang/sys",
-    revision = "ad400b1274690a55531a013560dc08706088f82b",
+    module = "golang.org/x/sys",
+    version = "97ca703d548d",
 )
 
-go_get(
+go_module(
     name = "xerrors",
-    get = "golang.org/x/xerrors",
     install = [
         "",
         "internal",
     ],
-    repo = "github.com/golang/xerrors",
-    revision = "9bdfabe68543c54f90421aeb9a60ef8061b5b544",
+    module = "golang.org/x/xerrors",
+    version = "5ec99f83aff1",
 )
 
-go_get(
+go_module(
     name = "mod",
-    get = "golang.org/x/mod",
     install = [
         "modfile",
         "module",
         "semver",
         "internal/lazyregexp",
     ],
-    repo = "github.com/golang/mod",
-    revision = "v0.3.0",
+    module = "golang.org/x/mod",
+    version = "v0.5.1",
     deps = [":xerrors"],
 )

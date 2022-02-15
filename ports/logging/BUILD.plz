@@ -1,6 +1,5 @@
 go_library(
     name = "logging",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["logger.go"],
     visibility = ["//..."],
-    deps = [],
 )
