@@ -7,6 +7,7 @@ import (
 
 	"github.com/tcncloud/wollemi/ports/ctl"
 	"github.com/tcncloud/wollemi/ports/logging"
+	"github.com/tcncloud/wollemi/ports/wollemi"
 )
 
 func RootCmd(app ctl.Application) *cobra.Command {
@@ -16,8 +17,9 @@ func RootCmd(app ctl.Application) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "wollemi",
-		Short: "cli for wollemi",
+		Use:     "wollemi",
+		Version: wollemi.WollemiVersion,
+		Short:   "cli for wollemi",
 		Long: Description(`
 			Please build file generator and formatter capable of generating go_binary,
 			go_library and go_test build rules from existing go code.

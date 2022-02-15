@@ -1,7 +1,12 @@
+subinclude("//build_defs:version")
+
 go_binary(
     name = "wollemi",
     srcs = ["main.go"],
     visibility = ["PUBLIC"],
+    definitions = {
+        "github.com/tcncloud/wollemi/ports/wollemi.WollemiVersion": VERSION,
+    },
     deps = [
         "//adapters/bazel",
         "//adapters/cobra",
