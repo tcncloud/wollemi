@@ -1,13 +1,12 @@
 go_library(
     name = "optional",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["value.go"],
     visibility = ["//..."],
-    deps = [],
 )
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = ["value_test.go"],
     external = True,
     deps = [
         ":optional",

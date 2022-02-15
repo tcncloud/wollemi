@@ -1,8 +1,18 @@
 go_library(
     name = "please",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = [
+        "builder.go",
+        "comments.go",
+        "config.go",
+        "ctl.go",
+        "expr.go",
+        "file.go",
+        "filesystem.go",
+        "graph.go",
+        "rule.go",
+        "utils.go",
+    ],
     visibility = ["//..."],
-    deps = [],
 )
 
 go_mock(

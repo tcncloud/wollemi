@@ -1,14 +1,13 @@
 package(default_visibility = ["PUBLIC"])
 
-go_get(
-    name = "yaml.v2",
-    get = "gopkg.in/yaml.v2",
-    repo = "github.com/go-yaml/yaml",
-    revision = "v2.2.2",
+go_module(
+    name = "yaml.v3",
+    module = "gopkg.in/yaml.v3",
+    version = "496545a6307b",
 )
 
-go_get(
+go_module(
     name = "warnings",
-    get = "gopkg.in/warnings.v0",
-    revision = "v0.1.2",
+    module = "gopkg.in/warnings.v0",
+    version = "v0.1.2",
 )

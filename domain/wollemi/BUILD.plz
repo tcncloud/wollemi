@@ -1,6 +1,14 @@
 go_library(
     name = "wollemi",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = [
+        "chan_func.go",
+        "service.go",
+        "service_format.go",
+        "service_rules_unused.go",
+        "service_symlink_go_path.go",
+        "service_symlink_list.go",
+        "util.go",
+    ],
     visibility = ["//..."],
     deps = [
         "//domain/optional",
@@ -13,7 +21,13 @@ go_library(
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = [
+        "service_format_test.go",
+        "service_rules_unused_test.go",
+        "service_suite_test.go",
+        "service_symlink_go_path_test.go",
+        "service_symlink_list_test.go",
+    ],
     external = True,
     visibility = ["//..."],
     deps = [

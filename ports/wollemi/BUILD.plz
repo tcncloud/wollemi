@@ -1,13 +1,16 @@
 go_library(
     name = "wollemi",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = [
+        "config.go",
+        "filesystem.go",
+    ],
     visibility = ["//..."],
     deps = ["//domain/optional"],
 )
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = ["config_test.go"],
     external = True,
     deps = [
         ":wollemi",

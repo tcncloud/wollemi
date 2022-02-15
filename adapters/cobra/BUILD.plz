@@ -1,6 +1,19 @@
 go_library(
     name = "cobra",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = [
+        "completion.go",
+        "completion_bash.go",
+        "completion_zsh.go",
+        "ctl.go",
+        "fmt.go",
+        "gofmt.go",
+        "root.go",
+        "rules.go",
+        "rules_unused.go",
+        "symlink.go",
+        "symlink_go_path.go",
+        "symlink_list.go",
+    ],
     visibility = ["//..."],
     deps = [
         "//ports/ctl",

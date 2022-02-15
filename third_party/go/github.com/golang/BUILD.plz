@@ -17,20 +17,16 @@ build_rule(
     ]),
 )
 
-go_get(
+go_module(
     name = "mock",
-    get = "github.com/golang/mock",
     install = [
         "mockgen/model",
         "gomock",
     ],
-    repo = "github.com/golang/mock",
-    revision = "v1.4.3",
+    module = "github.com/golang/mock",
     strip = [
         "ci",
         "sample",
     ],
-    deps = [
-        "//third_party/go/golang.org/x:tools",
-    ],
+    version = "v1.6.0",
 )

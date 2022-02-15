@@ -257,7 +257,6 @@ func (this *Service) parsePaths() error {
 						Path: dir.Path,
 					}
 
-
 					install := rule.AttrStrings("install")
 					if len(install) == 0 {
 						install = []string{"."} // Empty install list installs the root package

@@ -6,10 +6,9 @@
 ; Or you can uncomment the following to pin everyone to a particular version;
 ; when you change it all users will automatically get updated.
 [please]
-version = 15.14.0
+version = 16.19.0
 
 [parse]
-;preloadbuilddefs = build_defs/go_rules.build_defs
 preloadbuilddefs = build_defs/go_mock_rule.build_defs
 
 [go]

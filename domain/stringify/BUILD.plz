@@ -1,13 +1,12 @@
 go_library(
     name = "stringify",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["stringify.go"],
     visibility = ["//..."],
-    deps = [],
 )
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = ["stringify_test.go"],
     external = True,
     deps = [
         ":stringify",

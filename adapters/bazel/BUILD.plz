@@ -1,6 +1,14 @@
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = [
+        "builder_suite_test.go",
+        "builder_test.go",
+        "decode_test.go",
+        "encode_test.go",
+        "factory_test.go",
+        "file_test.go",
+        "rule_test.go",
+    ],
     external = True,
     deps = [
         ":bazel",
@@ -15,7 +23,13 @@ go_test(
 
 go_library(
     name = "bazel",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = [
+        "builder.go",
+        "decode.go",
+        "encode.go",
+        "file.go",
+        "rule.go",
+    ],
     visibility = ["//..."],
     deps = [
         "//ports/logging",

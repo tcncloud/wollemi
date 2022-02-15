@@ -1,6 +1,6 @@
 go_library(
     name = "ctl",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["wollemi.go"],
     visibility = ["//..."],
     deps = [
         "//ports/logging",

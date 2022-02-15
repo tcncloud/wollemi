@@ -1,6 +1,6 @@
 go_library(
     name = "golang",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = ["importer.go"],
     visibility = ["//..."],
     deps = [
         "//ports/golang",
@@ -10,7 +10,7 @@ go_library(
 
 go_test(
     name = "test",
-    srcs = glob(["*_test.go"]),
+    srcs = ["importer_test.go"],
     external = True,
     deps = [
         ":golang",

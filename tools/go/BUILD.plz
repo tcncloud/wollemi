@@ -1,5 +1,12 @@
 go_toolchain(
     name = "toolchain",
-    version = "1.15.7",
+    architectures = [
+        "linux_amd64",
+        "darwin_amd64",
+        "windows_amd64",
+        "darwin_arm64",
+    ],
+    strip_srcs = False,
+    version = "1.17.3",
     visibility = ["PUBLIC"],
 )
