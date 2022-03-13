@@ -1,8 +1,8 @@
 def go_mock(name:str, interfaces:list, deps:list, package:str, visibility:list = None, labels:list = None):
-    deps += ['//third_party/go/github.com/golang:mock']
+    deps += ['//third_party/go/github.com/golang/mock']
 
     tools = {
-        'mockgen': ['//third_party/go/github.com/golang:mockgen'],
+        'mockgen': ['//third_party/go/github.com/golang/mock:mockgen'],
     }
 
     mock_name = 'mock_'+basename(package)

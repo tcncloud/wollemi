@@ -1,5 +1,3 @@
-package(default_visibility = ["PUBLIC"])
-
 mock_download = remote_file(
     name = "mockgen",
     _tag = "download",
@@ -15,6 +13,7 @@ build_rule(
         "tar xf $SRCS",
         "cp $(find . -name mockgen) .",
     ]),
+    visibility = ["PUBLIC"],
 )
 
 go_module(
@@ -29,4 +28,5 @@ go_module(
         "sample",
     ],
     version = "v1.6.0",
+    visibility = ["PUBLIC"],
 )

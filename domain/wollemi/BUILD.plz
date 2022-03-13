@@ -40,7 +40,7 @@ go_test(
         "//testdata/expect",
         "//testdata/mem",
         "//testdata/please",
-        "//third_party/go/github.com/golang:mock",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/golang/mock",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )

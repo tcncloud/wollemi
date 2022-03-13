@@ -15,9 +15,9 @@ go_test(
         "//ports/please",
         "//ports/please:mock",
         "//testdata/mem",
-        "//third_party/go/github.com/bazelbuild:buildtools",
-        "//third_party/go/github.com/golang:mock",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/bazelbuild/buildtools",
+        "//third_party/go/github.com/golang/mock",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )
 
@@ -34,6 +34,6 @@ go_library(
     deps = [
         "//ports/logging",
         "//ports/please",
-        "//third_party/go/github.com/bazelbuild:buildtools",
+        "//third_party/go/github.com/bazelbuild/buildtools",
     ],
 )

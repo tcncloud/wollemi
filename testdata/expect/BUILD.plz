@@ -6,6 +6,6 @@ go_library(
     deps = [
         "//domain/stringify",
         "//third_party/go/github.com/pmezard/go-difflib:difflib",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )

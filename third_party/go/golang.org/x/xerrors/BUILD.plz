@@ -1,0 +1,10 @@
+go_module(
+    name = "xerrors",
+    install = [
+        ".",
+        "internal",
+    ],
+    module = "golang.org/x/xerrors",
+    version = "v0.0.0-20191011141410-1b5146add898",
+    visibility = ["PUBLIC"],
+)

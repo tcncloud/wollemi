@@ -1,16 +1,19 @@
-package(default_visibility = ["PUBLIC"])
-
 go_module(
     name = "testify",
     install = [
+        ".",
         "assert",
         "require",
+        "http",
+        "mock",
     ],
     module = "github.com/stretchr/testify",
     version = "v1.7.0",
+    visibility = ["PUBLIC"],
     deps = [
-        "//third_party/go/github.com/davecgh:go-spew",
+        "//third_party/go/github.com/davecgh/go-spew",
         "//third_party/go/github.com/pmezard/go-difflib:difflib",
-        "//third_party/go/gopkg.in:yaml.v3",
+        "//third_party/go/github.com/stretchr/objx",
+        "//third_party/go/gopkg.in/yaml.v3",
     ],
 )
