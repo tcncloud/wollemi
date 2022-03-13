@@ -1,0 +1,13 @@
+go_module(
+    name = "gcfg",
+    install = [
+        ".",
+        "scanner",
+        "token",
+        "types",
+    ],
+    module = "github.com/please-build/gcfg",
+    version = "v1.6.0",
+    visibility = ["PUBLIC"],
+    deps = ["//third_party/go/gopkg.in/warnings.v0"],
+)

@@ -10,6 +10,6 @@ go_test(
     external = True,
     deps = [
         ":stringify",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )

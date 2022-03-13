@@ -4,7 +4,7 @@ go_library(
     visibility = ["//..."],
     deps = [
         "//ports/logging",
-        "//third_party/go/github.com/sirupsen:logrus",
+        "//third_party/go/github.com/sirupsen/logrus",
     ],
 )
 
@@ -18,6 +18,6 @@ go_test(
     deps = [
         ":logrus",
         "//ports/logging",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )

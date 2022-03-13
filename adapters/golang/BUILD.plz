@@ -4,7 +4,7 @@ go_library(
     visibility = ["//..."],
     deps = [
         "//ports/golang",
-        "//third_party/go/golang.org/x:mod",
+        "//third_party/go/golang.org/x/mod",
     ],
 )
 
@@ -14,6 +14,6 @@ go_test(
     external = True,
     deps = [
         ":golang",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )

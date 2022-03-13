@@ -4,6 +4,6 @@ go_library(
     visibility = ["//..."],
     deps = [
         "//ports/please",
-        "//third_party/go/github.com/peterebden:gcfg",
+        "//third_party/go/github.com/please-build/gcfg",
     ],
 )

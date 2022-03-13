@@ -15,7 +15,7 @@ go_test(
     deps = [
         ":wollemi",
         "//domain/optional",
-        "//third_party/go/github.com/stretchr:testify",
+        "//third_party/go/github.com/stretchr/testify",
     ],
 )
 

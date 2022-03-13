@@ -1,0 +1,6 @@
+go_mod_download(
+    name = "download",
+    module = "github.com/peterebden/buildtools",
+    version = "fstrings",
+    visibility = ["PUBLIC"],
+)

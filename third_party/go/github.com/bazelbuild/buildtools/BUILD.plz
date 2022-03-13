@@ -1,14 +1,11 @@
-package(default_visibility = ["PUBLIC"])
-
-go_get(
+go_module(
     name = "buildtools",
-    get = "github.com/bazelbuild/buildtools",
+    download = "//third_party/go/github.com/peterebden/buildtools:download",
     install = [
         "build",
         "tables",
     ],
-    repo = "github.com/peterebden/buildtools",
-    revision = "fstrings",
+    module = "github.com/bazelbuild/buildtools",
     strip = [
         ".bazelci",
         "api_proto",
@@ -41,4 +38,5 @@ go_get(
         "warn",
         "wspace",
     ],
+    visibility = ["PUBLIC"],
 )
