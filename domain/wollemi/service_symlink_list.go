@@ -64,33 +64,31 @@ func (this *Service) SymlinkList(name string, broken, prune bool, exclude, inclu
 					return nil
 				}
 
-				if strings.HasPrefix(link, this.root) {
-					log := this.log.
-						WithField("link", strings.TrimPrefix(path, this.GoSrcPath()+"/")).
-						WithField("path", strings.TrimPrefix(link, this.root+"/"))
+				log := this.log.
+					WithField("link", strings.TrimPrefix(path, this.GoSrcPath()+"/")).
+					WithField("path", strings.TrimPrefix(link, this.root+"/"))
 
-					if broken {
-						_, err := this.filesystem.Stat(link)
-						if err == nil {
-							return nil
-						}
-
-						if !os.IsNotExist(err) {
-							log.WithError(err).Warn("could not stat link")
-							return nil
-						}
+				if broken {
+					_, err := this.filesystem.Stat(link)
+					if err == nil {
+						return nil
 					}
 
-					if prune {
-						if err := this.filesystem.Remove(path); err != nil {
-							log.WithError(err).Warn("could not remove link")
-							return nil
-						}
-
-						log.Info("symlink deleted")
-					} else {
-						log.Info("symlink")
+					if !os.IsNotExist(err) {
+						log.WithError(err).Warn("could not stat link")
+						return nil
 					}
+				}
+
+				if prune {
+					if err := this.filesystem.Remove(path); err != nil {
+						log.WithError(err).Warn("could not remove link")
+						return nil
+					}
+
+					log.Info("symlink deleted")
+				} else {
+					log.Info("symlink")
 				}
 			}
 
