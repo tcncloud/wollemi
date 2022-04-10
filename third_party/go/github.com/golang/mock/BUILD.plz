@@ -1,7 +1,11 @@
+package(default_visibility = ["PUBLIC"])
+
+GOMOCK_VERSION = "1.6.0"
+
 mock_download = remote_file(
     name = "mockgen",
     _tag = "download",
-    url = "https://github.com/golang/mock/releases/download/v1.4.3/mock_1.4.3_" + CONFIG.HOSTOS + "_" + CONFIG.HOSTARCH + ".tar.gz",
+    url = f"https://github.com/golang/mock/releases/download/v{GOMOCK_VERSION}/mock_{GOMOCK_VERSION}_" + CONFIG.HOSTOS + "_" + CONFIG.HOSTARCH + ".tar.gz",
 )
 
 build_rule(
@@ -27,6 +31,5 @@ go_module(
         "ci",
         "sample",
     ],
-    version = "v1.6.0",
-    visibility = ["PUBLIC"],
+    version = f"v{GOMOCK_VERSION}",
 )
