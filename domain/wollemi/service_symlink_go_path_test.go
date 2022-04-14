@@ -164,6 +164,22 @@ func (t *ServiceSuite) TestService_SymlinkGoPath() {
 
 		wollemi.SymlinkGoPath(force, paths)
 	})
+
+	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
+		w := t.New(root, wd, gosrc, gopkg)
+
+		var (
+			force = false
+			paths = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+		)
+
+		err := w.SymlinkGoPath(force, paths)
+
+		assert.Error(t, err)
+	})
 }
 
 func ignoreSkipDir(err error) error {

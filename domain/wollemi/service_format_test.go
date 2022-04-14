@@ -1731,10 +1731,17 @@ func (t *ServiceSuite) TestService_GoFormat() {
 	}
 
 	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
-		paths := []string{filepath.Join(root, "subdir"), "/outside/of/root"}
 		w := t.New(root, wd, gosrc, gopkg)
 
-		err := w.GoFormat(wollemi.Config{}, paths)
+		var (
+			config = wollemi.Config{}
+			paths  = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+		)
+
+		err := w.GoFormat(config, paths)
 
 		assert.Error(t, err)
 	})

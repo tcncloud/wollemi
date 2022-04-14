@@ -115,10 +115,19 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 	})
 
 	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
-		paths := []string{filepath.Join(root, "subdir"), "/outside/of/root"}
 		w := t.New(root, wd, gosrc, gopkg)
 
-		err := w.RulesUnused(false, nil, paths, nil)
+		var (
+			prune bool = true
+			kinds []string
+			paths = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+			excludePaths []string
+		)
+
+		err := w.RulesUnused(prune, kinds, paths, excludePaths)
 
 		assert.Error(t, err)
 	})

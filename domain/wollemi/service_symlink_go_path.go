@@ -12,6 +12,10 @@ import (
 )
 
 func (this *Service) SymlinkGoPath(force bool, paths []string) error {
+	if err := this.validateAbsolutePaths(paths); err != nil {
+		return err
+	}
+
 	paths = this.normalizePaths(paths)
 
 	deps, err := this.please.QueryDeps(paths...)
