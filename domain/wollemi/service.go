@@ -54,6 +54,15 @@ type Service struct {
 	goFormat *goFormat
 }
 
+func (this *Service) validateAbsolutePaths(paths []string) error {
+	for _, path := range paths {
+		if filepath.IsAbs(path) && !strings.HasPrefix(path, this.root) {
+			return fmt.Errorf("absolute paths must be under the repo root")
+		}
+	}
+	return nil
+}
+
 func (this *Service) normalizePaths(paths []string) []string {
 	if len(paths) == 0 {
 		paths = []string{"..."}
@@ -63,8 +72,6 @@ func (this *Service) normalizePaths(paths []string) []string {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(this.wd, path)
 		}
-		// TODO: should we check that all absolute paths live under the root before we get to here? i don't think we can
-		// format them if not
 		if strings.HasPrefix(path, this.root) {
 			path, _ = filepath.Rel(this.root, path)
 		}
