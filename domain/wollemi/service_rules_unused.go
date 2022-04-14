@@ -11,6 +11,10 @@ import (
 )
 
 func (this *Service) RulesUnused(prune bool, kinds, paths, exclude []string) error {
+	if err := this.validateAbsolutePaths(paths); err != nil {
+		return err
+	}
+
 	graph, err := this.please.Graph()
 	if err != nil {
 		return err

@@ -3,6 +3,7 @@ package wollemi_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,6 +112,15 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 		)
 
 		wollemi.RulesUnused(prune, kinds, paths, excludePaths)
+	})
+
+	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
+		paths := []string{filepath.Join(root, "subdir"), "/outside/of/root"}
+		w := t.New(root, wd, gosrc, gopkg)
+
+		err := w.RulesUnused(false, nil, paths, nil)
+
+		assert.Error(t, err)
 	})
 }
 
