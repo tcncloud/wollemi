@@ -385,6 +385,9 @@ func (this *Service) isInternal(path string) bool {
 }
 
 func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
+	if err := this.validateAbsolutePaths(paths); err != nil {
+		return err
+	}
 	this.goFormat = newGoFormat(this.normalizePaths(paths))
 	defer this.goFormat.resolveLimiter.Close()
 
@@ -403,6 +406,15 @@ func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
 	}
 	this.formatDirs()
 
+	return nil
+}
+
+func (this *Service) validateAbsolutePaths(paths []string) error {
+	for _, path := range paths {
+		if filepath.IsAbs(path) && !strings.HasPrefix(path, this.root) {
+			return fmt.Errorf("absolute paths must be under the repo root")
+		}
+	}
 	return nil
 }
 
