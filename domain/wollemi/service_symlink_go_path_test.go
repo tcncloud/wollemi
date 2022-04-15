@@ -37,9 +37,6 @@ func (t *ServiceSuite) TestService_SymlinkGoPath() {
 			"//ports/wollemi:wollemi",
 		}
 
-		gopkg := "github.com/wollemi_test"
-		gosrc := "/go/src"
-
 		goSrcPath := func(elems ...string) string {
 			return filepath.Join(gosrc, filepath.Join(elems...))
 		}
@@ -155,7 +152,7 @@ func (t *ServiceSuite) TestService_SymlinkGoPath() {
 
 		t.DefaultMocks()
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			force = false
@@ -166,6 +163,22 @@ func (t *ServiceSuite) TestService_SymlinkGoPath() {
 		)
 
 		wollemi.SymlinkGoPath(force, paths)
+	})
+
+	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
+		wollemi := t.New(root, wd, gosrc, gopkg)
+
+		var (
+			force = false
+			paths = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+		)
+
+		err := wollemi.SymlinkGoPath(force, paths)
+
+		assert.Error(t, err)
 	})
 }
 

@@ -29,6 +29,11 @@ const (
 	gopkg = "github.com/example"
 )
 
+var (
+	root = filepath.Join(gosrc, gopkg)
+	wd   = root
+)
+
 func (t *ServiceSuite) TestService_GoFormat() {
 	type T = ServiceSuite
 
@@ -1542,6 +1547,150 @@ func (t *ServiceSuite) TestService_GoFormat() {
 				},
 			},
 		},
+	}, { // TEST_CASE -------------------------------------------------------------
+		Title: "accepts absolute paths when in the root",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Root:  "/root",
+			Wd:    "/root",
+			Paths: []string{"/root/app"},
+			Parse: t.WithThirdPartyGo(nil),
+			ImportDir: map[string]*golang.Package{
+				"app": {
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": {
+							"github.com/spf13/cobra",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"app/BUILD.plz": {
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE -------------------------------------------------------------
+		Title: "accepts absolute paths when in a child of the root",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Root:  "/root",
+			Wd:    "/root/wd",
+			Paths: []string{"/root/wd/app"},
+			Parse: t.WithThirdPartyGo(nil),
+			ImportDir: map[string]*golang.Package{
+				"wd/app": {
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": {
+							"github.com/spf13/cobra",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"wd/app/BUILD.plz": {
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE -------------------------------------------------------------
+		Title: "accepts relative paths when in a child of the root",
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Root:  "/root",
+			Wd:    "/root/wd",
+			Paths: []string{"app"},
+			Parse: t.WithThirdPartyGo(nil),
+			ImportDir: map[string]*golang.Package{
+				"wd/app": {
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": {
+							"github.com/spf13/cobra",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"wd/app/BUILD.plz": {
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/spf13:cobra",
+							}),
+						}),
+					},
+				},
+			},
+		},
+	}, { // TEST_CASE -------------------------------------------------------------
+		Title:  "reads config from directory when absolute path given",
+		Config: wollemi.Config{},
+		Data: &GoFormatTestData{
+			Gosrc: gosrc,
+			Gopkg: gopkg,
+			Root:  "/root",
+			Wd:    "/root",
+			Config: map[string]wollemi.Config{
+				"parent/app": {KnownDependency: map[string]string{
+					"github.com/example/dep": "//third_party/go/github.com/example/override"}},
+			},
+			Paths: []string{"/root/parent/app"},
+			ImportDir: map[string]*golang.Package{
+				"parent/app": {
+					Name:    "main",
+					GoFiles: []string{"main.go"},
+					GoFileImports: map[string][]string{
+						"main.go": {
+							"github.com/example/dep",
+						},
+					},
+				},
+			},
+			Write: map[string]*please.BuildFile{
+				"parent/app/BUILD.plz": {
+					Stmt: []please.Expr{
+						please.NewCallExpr("go_binary", []please.Expr{
+							please.NewAssignExpr("=", "name", "app"),
+							please.NewAssignExpr("=", "srcs", please.NewGlob([]string{"*.go"}, "*_test.go")),
+							please.NewAssignExpr("=", "visibility", []string{"PUBLIC"}),
+							please.NewAssignExpr("=", "deps", []string{
+								"//third_party/go/github.com/example/override",
+							}),
+						}),
+					},
+				},
+			},
+		},
 	}} {
 		focus := ""
 
@@ -1554,7 +1703,15 @@ func (t *ServiceSuite) TestService_GoFormat() {
 
 			t.MockGoFormat(tt.Data, write)
 
-			wollemi := t.New(tt.Data.Gosrc, tt.Data.Gopkg)
+			root := root
+			if tt.Data.Root != "" {
+				root = tt.Data.Root
+			}
+			wd := wd
+			if tt.Data.Wd != "" {
+				wd = tt.Data.Wd
+			}
+			wollemi := t.New(root, wd, tt.Data.Gosrc, tt.Data.Gopkg)
 
 			require.NoError(t, wollemi.GoFormat(tt.Config, tt.Data.Paths))
 			close(write)
@@ -1572,6 +1729,22 @@ func (t *ServiceSuite) TestService_GoFormat() {
 			}
 		})
 	}
+
+	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
+		w := t.New(root, wd, gosrc, gopkg)
+
+		var (
+			config = wollemi.Config{}
+			paths  = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+		)
+
+		err := w.GoFormat(config, paths)
+
+		assert.Error(t, err)
+	})
 }
 
 func (t *ServiceSuite) MockGoFormat(data *GoFormatTestData, write chan please.File) {
@@ -1706,6 +1879,8 @@ func (t *ServiceSuite) MockGoFormat(data *GoFormatTestData, write chan please.Fi
 type GoFormatTestData struct {
 	Gosrc     string
 	Gopkg     string
+	Root      string
+	Wd        string
 	Paths     []string
 	Config    map[string]wollemi.Config
 	ImportDir map[string]*golang.Package

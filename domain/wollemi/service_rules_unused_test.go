@@ -3,6 +3,7 @@ package wollemi_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,15 +19,10 @@ func TestService_RulesUnused(t *testing.T) {
 func (t *ServiceSuite) TestService_RulesUnused() {
 	type T = ServiceSuite
 
-	const (
-		gopkg = "github.com/wollemi_test"
-		gosrc = "/go/src"
-	)
-
 	t.It("can list unused build rules", func(t *T) {
 		t.MockRulesUnused()
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			prune        bool
@@ -106,7 +102,7 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 			expect.Equal(t, want, have)
 		})
 
-		wollemi := t.New(gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			prune        bool = true
@@ -116,6 +112,24 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 		)
 
 		wollemi.RulesUnused(prune, kinds, paths, excludePaths)
+	})
+
+	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
+		wollemi := t.New(root, wd, gosrc, gopkg)
+
+		var (
+			prune bool = true
+			kinds []string
+			paths = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+			excludePaths []string
+		)
+
+		err := wollemi.RulesUnused(prune, kinds, paths, excludePaths)
+
+		assert.Error(t, err)
 	})
 }
 

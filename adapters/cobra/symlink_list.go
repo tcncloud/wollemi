@@ -64,7 +64,9 @@ func SymlinkListCmd(app ctl.Application) *cobra.Command {
 				args = []string{filepath.Join(wollemi.GoSrcPath(), "...")}
 			}
 
-			wollemi.SymlinkList(name, broken, prune, exclude, args)
+			if err := wollemi.SymlinkList(name, broken, prune, exclude, args); err != nil {
+				return err
+			}
 
 			return nil
 		},

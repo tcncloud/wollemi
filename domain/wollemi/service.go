@@ -54,19 +54,32 @@ type Service struct {
 	goFormat *goFormat
 }
 
+func (this *Service) validateAbsolutePaths(paths []string) error {
+	invalidPaths := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if filepath.IsAbs(path) && !strings.HasPrefix(path, this.root) {
+			invalidPaths = append(invalidPaths, path)
+		}
+	}
+	if len(invalidPaths) > 0 {
+		return fmt.Errorf("absolute paths %q are not under the plz repo root %q", invalidPaths, this.root)
+	}
+	return nil
+}
+
 func (this *Service) normalizePaths(paths []string) []string {
 	if len(paths) == 0 {
 		paths = []string{"..."}
 	}
 
-	var relpath string
-
-	if this.wd != this.root && strings.HasPrefix(this.wd, this.root) {
-		relpath = strings.TrimPrefix(this.wd, this.root+"/")
-
-		for i, path := range paths {
-			paths[i] = filepath.Join(relpath, strings.TrimSuffix(path, "/"))
+	for i, path := range paths {
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(this.wd, path)
 		}
+		if strings.HasPrefix(path, this.root) {
+			path, _ = filepath.Rel(this.root, path)
+		}
+		paths[i] = path
 	}
 
 	return paths

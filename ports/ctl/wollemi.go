@@ -15,7 +15,7 @@ type Wollemi interface {
 	GoFormat(wollemi.Config, []string) error
 	GoPkgPath(...string) string
 	GoSrcPath(...string) string
-	SymlinkList(string, bool, bool, []string, []string)
+	SymlinkList(string, bool, bool, []string, []string) error
 	SymlinkGoPath(bool, []string) error
 	RulesUnused(bool, []string, []string, []string) error
 }

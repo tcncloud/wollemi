@@ -385,6 +385,10 @@ func (this *Service) isInternal(path string) bool {
 }
 
 func (this *Service) GoFormat(config wollemi.Config, paths []string) error {
+	if err := this.validateAbsolutePaths(paths); err != nil {
+		return err
+	}
+
 	this.goFormat = newGoFormat(this.normalizePaths(paths))
 	defer this.goFormat.resolveLimiter.Close()
 
