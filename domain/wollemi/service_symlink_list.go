@@ -8,7 +8,10 @@ import (
 	"github.com/tcncloud/wollemi/ports/please"
 )
 
-func (this *Service) SymlinkList(name string, broken, prune bool, exclude, include []string) {
+func (this *Service) SymlinkList(name string, broken, prune bool, exclude, include []string) error {
+	if err := this.validateAbsolutePaths(include); err != nil {
+		return err
+	}
 	include = this.normalizePaths(include)
 
 	for _, targetPath := range include {
@@ -101,4 +104,5 @@ func (this *Service) SymlinkList(name string, broken, prune bool, exclude, inclu
 				Warn("could not walk")
 		}
 	}
+	return nil
 }

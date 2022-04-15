@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/tcncloud/wollemi/ports/golang"
 	"github.com/tcncloud/wollemi/testdata/please"
@@ -60,7 +61,8 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 			include []string
 		)
 
-		wollemi.SymlinkList(name, broken, prune, exclude, include)
+		err := wollemi.SymlinkList(name, broken, prune, exclude, include)
+		require.NoError(t, err)
 
 		want := []map[string]interface{}{
 			map[string]interface{}{
@@ -152,7 +154,8 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 			include []string
 		)
 
-		wollemi.SymlinkList(name, broken, prune, exclude, include)
+		err := wollemi.SymlinkList(name, broken, prune, exclude, include)
+		require.NoError(t, err)
 
 		want := []map[string]interface{}{
 			map[string]interface{}{
@@ -217,7 +220,8 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 			include []string
 		)
 
-		wollemi.SymlinkList(name, broken, prune, exclude, include)
+		err := wollemi.SymlinkList(name, broken, prune, exclude, include)
+		require.NoError(t, err)
 
 		want := []map[string]interface{}{
 			map[string]interface{}{
@@ -297,7 +301,8 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 			include []string
 		)
 
-		wollemi.SymlinkList(name, broken, prune, exclude, include)
+		err := wollemi.SymlinkList(name, broken, prune, exclude, include)
+		require.NoError(t, err)
 
 		want := []map[string]interface{}{
 			map[string]interface{}{
@@ -368,7 +373,8 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 			include []string
 		)
 
-		wollemi.SymlinkList(name, broken, prune, exclude, include)
+		err := wollemi.SymlinkList(name, broken, prune, exclude, include)
+		require.NoError(t, err)
 
 		want := []map[string]interface{}{
 			map[string]interface{}{
@@ -390,6 +396,27 @@ func (t *ServiceSuite) TestService_SymlinkList() {
 		}
 
 		assert.ElementsMatch(t, want, t.logger.Lines())
+	})
+
+	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
+		wollemi := t.New(root, wd, gosrc, gopkg)
+
+		var (
+			name    = "*"
+			broken  bool
+			prune   bool
+			exclude []string = []string{
+				"app/protos/mock",
+			}
+			include = []string{
+				filepath.Join(root, "subdir"),
+				"/outside/of/root",
+			}
+		)
+
+		err := wollemi.SymlinkList(name, broken, prune, exclude, include)
+
+		assert.Error(t, err)
 	})
 }
 
