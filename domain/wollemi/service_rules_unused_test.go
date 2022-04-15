@@ -115,7 +115,7 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 	})
 
 	t.It("returns an error if given an absolute path which is not under the repo root", func(t *T) {
-		w := t.New(root, wd, gosrc, gopkg)
+		wollemi := t.New(root, wd, gosrc, gopkg)
 
 		var (
 			prune bool = true
@@ -127,7 +127,7 @@ func (t *ServiceSuite) TestService_RulesUnused() {
 			excludePaths []string
 		)
 
-		err := w.RulesUnused(prune, kinds, paths, excludePaths)
+		err := wollemi.RulesUnused(prune, kinds, paths, excludePaths)
 
 		assert.Error(t, err)
 	})
