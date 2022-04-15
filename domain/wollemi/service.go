@@ -55,10 +55,14 @@ type Service struct {
 }
 
 func (this *Service) validateAbsolutePaths(paths []string) error {
+	invalidPaths := make([]string, 0, len(paths))
 	for _, path := range paths {
 		if filepath.IsAbs(path) && !strings.HasPrefix(path, this.root) {
-			return fmt.Errorf("absolute paths must be under the repo root")
+			invalidPaths = append(invalidPaths, path)
 		}
+	}
+	if len(invalidPaths) > 0 {
+		return fmt.Errorf("absolute paths %q are not under the plz repo root %q", invalidPaths, this.root)
 	}
 	return nil
 }
